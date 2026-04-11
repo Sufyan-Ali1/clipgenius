@@ -5,6 +5,9 @@
 credentials/
 *.json
 
+# Storage folders (temporary processing files)
+storage/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -13,13 +16,6 @@ __pycache__/
 .Python
 venv/
 ENV/
-
-# Temporary files
-temp/
-*.tmp
-
-# Output files (optional - uncomment if you don't want to commit clips)
-# output/
 
 # IDE
 .idea/
@@ -34,3 +30,6 @@ Thumbs.db
 # Whisper models (large files)
 *.pt
 *.bin
+
+# Logs
+*.log

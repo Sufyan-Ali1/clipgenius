@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# Environment
+.env
+venv/
+ENV/
+
+# Credentials (mount separately)
+credentials/
+
+# Storage (created at runtime)
+storage/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docs
+*.md

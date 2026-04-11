@@ -1,0 +1,35 @@
+services:
+  video-clips-api:
+    image: video-clips-api
+    ports:
+      - "8000:8000"
+    environment:
+      # LLM Provider (set your keys here or use .env file)
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # LLM Settings
+      - LLM_PROVIDER=${LLM_PROVIDER:-groq}
+      - LLM_MODEL=${LLM_MODEL:-llama-3.3-70b-versatile}
+
+      # Google Drive
+      - GOOGLE_CREDENTIALS_PATH=/app/credentials/service-account.json
+      - GOOGLE_DRIVE_FOLDER_ID=${GOOGLE_DRIVE_FOLDER_ID}
+      - GOOGLE_DRIVE_ENABLED=${GOOGLE_DRIVE_ENABLED:-true}
+
+      # Clip Settings
+      - NUM_CLIPS=${NUM_CLIPS:-5}
+      - MIN_CLIP_DURATION=${MIN_CLIP_DURATION:-30}
+      - MAX_CLIP_DURATION=${MAX_CLIP_DURATION:-90}
+      - YOUTUBE_QUALITY=${YOUTUBE_QUALITY:-best}
+
+      # Video Settings
+      - VERTICAL_MODE=${VERTICAL_MODE:-true}
+      - ADD_SUBTITLES=${ADD_SUBTITLES:-true}
+    volumes:
+      # Mount credentials file
+      - ./credentials:/app/credentials:ro
+      # Optional: persist storage locally
+      # - ./storage:/app/storage
+    restart: unless-stopped
