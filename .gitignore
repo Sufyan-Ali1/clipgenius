@@ -1,0 +1,36 @@
+# Environment variables (contains API keys - NEVER commit!)
+.env
+
+# Google credentials (NEVER commit!)
+credentials/
+*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Temporary files
+temp/
+*.tmp
+
+# Output files (optional - uncomment if you don't want to commit clips)
+# output/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Whisper models (large files)
+*.pt
+*.bin

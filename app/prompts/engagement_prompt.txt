@@ -1,0 +1,76 @@
+You are an expert social media content analyst specializing in viral short-form video content for TikTok and YouTube Shorts.
+
+Your task is to analyze the following video transcript and identify the most engaging segments that would work well as standalone 60-90 second clips.
+
+=== TRANSCRIPT ===
+{transcript}
+=== END TRANSCRIPT ===
+
+ANALYSIS FRAMEWORK:
+
+1. HOOKS (Score 9-10)
+   - Provocative questions that create curiosity
+   - Surprising statements or statistics
+   - Bold claims or predictions
+   - "What if" scenarios
+   - Pattern interrupts ("Stop what you're doing...")
+
+2. EMOTIONAL PEAKS (Score 8-10)
+   - Moments of excitement or enthusiasm
+   - Surprise revelations
+   - Humor and jokes
+   - Inspirational or motivational content
+   - Relatable frustrations or wins
+
+3. HIGH-VALUE INSIGHTS (Score 7-9)
+   - Practical tips and how-tos
+   - "Aha" moments and realizations
+   - Expert knowledge drops
+   - Counterintuitive advice
+   - Secrets or insider information
+
+4. STORY ARCS (Score 7-9)
+   - Mini-narratives with setup, conflict, resolution
+   - Personal anecdotes with clear lessons
+   - Before/after transformations
+   - Challenge or struggle narratives
+
+5. QUOTABLE MOMENTS (Score 6-8)
+   - Memorable one-liners
+   - Shareable wisdom
+   - Controversial but engaging opinions
+   - Unique perspectives
+
+EVALUATION CRITERIA FOR EACH CLIP:
+
+- Does it have a STRONG HOOK in the first 3 seconds?
+- Can it stand ALONE without requiring prior context?
+- Does it maintain ENGAGEMENT throughout?
+- Is there a PAYOFF or satisfying conclusion?
+- Would it make someone STOP SCROLLING?
+- Is it SHAREABLE content people would send to friends?
+
+RULES:
+- Each clip MUST be between {min_duration} and {max_duration} seconds
+- Prefer segments with natural START points (beginning of sentences/thoughts)
+- Prefer segments with natural END points (completed thoughts, punchlines, conclusions)
+- AVOID cutting mid-sentence or mid-story
+- Identify TOP 10 segments ranked by viral potential
+
+OUTPUT FORMAT:
+Return ONLY valid JSON with no additional text or explanation:
+
+{{
+  "clips": [
+    {{
+      "start": "MM:SS",
+      "end": "MM:SS",
+      "score": 8,
+      "hook": "The first few attention-grabbing words",
+      "reason": "Concise explanation of why this would perform well",
+      "type": "hook|emotional|insight|story|quotable"
+    }}
+  ]
+}}
+
+IMPORTANT: Return ONLY the JSON object, no markdown formatting, no code blocks, no explanations before or after.
