@@ -1,7 +1,10 @@
 """
 Download Service - Single Responsibility: YouTube video download
 
-Downloads videos from YouTube using yt-dlp with Cobalt API fallback.
+Downloads videos from YouTube using multiple fallback methods:
+1. Piped API (primary - most reliable for datacenter IPs)
+2. Invidious API (secondary - privacy-focused YouTube frontend)
+3. yt-dlp (last resort - usually fails on datacenter IPs)
 """
 
 import re
@@ -15,9 +18,23 @@ from app.core.logging import get_logger
 
 logger = get_logger("download_service")
 
-# Cobalt API is disabled - official API now requires authentication
-# Keep as fallback list in case free instances become available
-COBALT_INSTANCES = []
+# Piped instances (modern YouTube frontend - more reliable)
+PIPED_INSTANCES = [
+    "https://pipedapi.kavin.rocks",
+    "https://pipedapi.adminforge.de",
+    "https://pipedapi.in.projectsegfau.lt",
+    "https://api.piped.yt",
+    "https://pipedapi.darkness.services",
+]
+
+# Invidious instances (fallback)
+INVIDIOUS_INSTANCES = [
+    "https://inv.nadeko.net",
+    "https://invidious.nerdvpn.de",
+    "https://invidious.jing.rocks",
+    "https://yewtu.be",
+    "https://vid.puffyan.us",
+]
 
 
 class DownloadService:
@@ -149,78 +166,271 @@ class DownloadService:
                 'view_count': info.get('view_count', 0),
             }
 
-    def _download_with_cobalt(self, url: str, output_path: Path) -> Optional[Path]:
-        """Download video using Cobalt API (fallback for blocked IPs)."""
+    def _extract_video_id(self, url: str) -> Optional[str]:
+        """Extract YouTube video ID from URL."""
+        patterns = [
+            r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/shorts/)([a-zA-Z0-9_-]{11})',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        return None
+
+    def _download_with_piped(self, url: str, output_path: Path) -> Optional[Path]:
+        """Download video using Piped API (modern YouTube frontend)."""
         import time
+        import subprocess
 
-        for instance in COBALT_INSTANCES:
+        video_id = self._extract_video_id(url)
+        if not video_id:
+            logger.warning(f"Could not extract video ID from URL: {url}")
+            return None
+
+        for instance in PIPED_INSTANCES:
             try:
-                logger.info(f"Trying Cobalt API: {instance}")
+                logger.info(f"Trying Piped: {instance}")
 
-                # Cobalt API v10 format
-                response = httpx.post(
-                    instance,
-                    json={
-                        "url": url,
-                        "videoQuality": "1080",
-                        "filenameStyle": "basic",
-                    },
-                    headers={
-                        "Accept": "application/json",
-                        "Content-Type": "application/json",
-                    },
-                    timeout=30.0
+                # Get video streams from Piped API
+                api_url = f"{instance}/streams/{video_id}"
+                response = httpx.get(
+                    api_url,
+                    headers={"Accept": "application/json"},
+                    timeout=30.0,
+                    follow_redirects=True
                 )
 
                 if response.status_code != 200:
-                    logger.warning(f"Cobalt returned {response.status_code}: {response.text[:200]}")
+                    logger.warning(f"Piped returned {response.status_code}")
                     continue
 
                 data = response.json()
-                logger.info(f"Cobalt response status: {data.get('status')}")
 
-                if data.get("status") == "error":
-                    error_info = data.get("error", {})
-                    error_code = error_info.get("code", "unknown") if isinstance(error_info, dict) else str(error_info)
-                    logger.warning(f"Cobalt error: {error_code}")
+                if data.get("error"):
+                    logger.warning(f"Piped error: {data.get('message', 'Unknown error')}")
                     continue
 
-                # Get download URL - can be in "url" or need to handle "tunnel"/"redirect" status
-                download_url = data.get("url")
-                status = data.get("status")
+                title = data.get("title", "video")
+                logger.info(f"Found video: {title}")
 
-                if status == "picker":
-                    # Multiple formats available, pick first video
-                    picker = data.get("picker", [])
-                    if picker:
-                        download_url = picker[0].get("url")
+                # Get video and audio streams
+                video_streams = data.get("videoStreams", [])
+                audio_streams = data.get("audioStreams", [])
+
+                # Filter for MP4/webm video streams and sort by quality
+                video_streams = [s for s in video_streams if s.get("videoOnly", False)]
+                video_streams.sort(key=lambda x: int(x.get("height", 0) or 0), reverse=True)
+
+                # Sort audio by bitrate
+                audio_streams.sort(key=lambda x: int(x.get("bitrate", 0) or 0), reverse=True)
+
+                download_url = None
+                audio_url = None
+
+                # Get best video (prefer 1080p or lower)
+                for vs in video_streams:
+                    height = int(vs.get("height", 0) or 0)
+                    if height <= 1080 and vs.get("url"):
+                        download_url = vs.get("url")
+                        break
+
+                if not download_url and video_streams:
+                    download_url = video_streams[0].get("url")
+
+                # Get best audio
+                if audio_streams:
+                    audio_url = audio_streams[0].get("url")
+
+                # Fallback: try combined streams (non videoOnly)
+                if not download_url:
+                    combined_streams = [s for s in data.get("videoStreams", []) if not s.get("videoOnly", True)]
+                    combined_streams.sort(key=lambda x: int(x.get("height", 0) or 0), reverse=True)
+                    if combined_streams:
+                        download_url = combined_streams[0].get("url")
+                        audio_url = None
 
                 if not download_url:
-                    logger.warning(f"No download URL in Cobalt response: {data}")
+                    logger.warning("No download URL found in Piped response")
                     continue
 
-                # Download the video file
-                logger.info("Downloading video via Cobalt...")
+                # Download video
+                logger.info(f"Downloading video via Piped...")
                 video_filename = output_path / f"video_{int(time.time())}.mp4"
+                temp_video = output_path / f"temp_video_{int(time.time())}.webm"
+                temp_audio = output_path / f"temp_audio_{int(time.time())}.webm"
 
-                with httpx.stream("GET", download_url, timeout=300.0, follow_redirects=True) as stream:
+                # Download video stream
+                logger.info("Downloading video stream...")
+                with httpx.stream("GET", download_url, timeout=600.0, follow_redirects=True) as stream:
                     stream.raise_for_status()
-                    with open(video_filename, "wb") as f:
-                        for chunk in stream.iter_bytes(chunk_size=8192):
+                    with open(temp_video, "wb") as f:
+                        for chunk in stream.iter_bytes(chunk_size=65536):
                             f.write(chunk)
 
+                # If we have separate audio, download and merge
+                if audio_url:
+                    logger.info("Downloading audio stream...")
+                    with httpx.stream("GET", audio_url, timeout=300.0, follow_redirects=True) as stream:
+                        stream.raise_for_status()
+                        with open(temp_audio, "wb") as f:
+                            for chunk in stream.iter_bytes(chunk_size=65536):
+                                f.write(chunk)
+
+                    # Merge with FFmpeg
+                    logger.info("Merging video and audio...")
+                    merge_cmd = [
+                        "ffmpeg", "-i", str(temp_video), "-i", str(temp_audio),
+                        "-c:v", "copy", "-c:a", "aac", "-y", str(video_filename)
+                    ]
+                    result = subprocess.run(merge_cmd, capture_output=True)
+                    if result.returncode != 0:
+                        # Try with re-encoding if copy fails
+                        merge_cmd = [
+                            "ffmpeg", "-i", str(temp_video), "-i", str(temp_audio),
+                            "-c:v", "libx264", "-c:a", "aac", "-y", str(video_filename)
+                        ]
+                        subprocess.run(merge_cmd, check=True, capture_output=True)
+
+                    # Cleanup temp files
+                    temp_video.unlink(missing_ok=True)
+                    temp_audio.unlink(missing_ok=True)
+                else:
+                    # No separate audio, just convert/copy
+                    merge_cmd = [
+                        "ffmpeg", "-i", str(temp_video),
+                        "-c:v", "copy", "-c:a", "copy", "-y", str(video_filename)
+                    ]
+                    result = subprocess.run(merge_cmd, capture_output=True)
+                    if result.returncode != 0:
+                        # Just rename if ffmpeg fails
+                        temp_video.rename(video_filename)
+                    else:
+                        temp_video.unlink(missing_ok=True)
+
                 if video_filename.exists() and video_filename.stat().st_size > 0:
-                    logger.info(f"Cobalt download success: {video_filename}")
+                    logger.info(f"Piped download success: {video_filename} ({video_filename.stat().st_size / 1024 / 1024:.1f} MB)")
                     return video_filename
 
             except Exception as e:
-                logger.warning(f"Cobalt instance {instance} failed: {e}")
+                logger.warning(f"Piped instance {instance} failed: {e}")
+                continue
+
+        return None
+
+    def _download_with_invidious(self, url: str, output_path: Path) -> Optional[Path]:
+        """Download video using Invidious API (free YouTube frontend)."""
+        import time
+
+        video_id = self._extract_video_id(url)
+        if not video_id:
+            logger.warning(f"Could not extract video ID from URL: {url}")
+            return None
+
+        for instance in INVIDIOUS_INSTANCES:
+            try:
+                logger.info(f"Trying Invidious: {instance}")
+
+                # Get video info from Invidious API
+                api_url = f"{instance}/api/v1/videos/{video_id}"
+                response = httpx.get(
+                    api_url,
+                    headers={"Accept": "application/json"},
+                    timeout=30.0,
+                    follow_redirects=True
+                )
+
+                if response.status_code != 200:
+                    logger.warning(f"Invidious returned {response.status_code}")
+                    continue
+
+                data = response.json()
+                title = data.get("title", "video")
+
+                # Get best quality format
+                # Try adaptiveFormats first (separate video+audio, higher quality)
+                adaptive_formats = data.get("adaptiveFormats", [])
+                format_streams = data.get("formatStreams", [])
+
+                download_url = None
+                audio_url = None
+
+                # Find best video from adaptive formats
+                video_formats = [f for f in adaptive_formats if f.get("type", "").startswith("video/")]
+                audio_formats = [f for f in adaptive_formats if f.get("type", "").startswith("audio/")]
+
+                # Sort by quality (resolution)
+                video_formats.sort(key=lambda x: int(x.get("resolution", "0p").replace("p", "") or 0), reverse=True)
+                audio_formats.sort(key=lambda x: int(x.get("bitrate", "0") or 0), reverse=True)
+
+                if video_formats and audio_formats:
+                    # Get best video (prefer 1080p or lower for reasonable file size)
+                    for vf in video_formats:
+                        res = int(vf.get("resolution", "0p").replace("p", "") or 0)
+                        if res <= 1080:
+                            download_url = vf.get("url")
+                            break
+                    if not download_url and video_formats:
+                        download_url = video_formats[0].get("url")
+                    audio_url = audio_formats[0].get("url")
+
+                # Fallback to formatStreams (combined video+audio)
+                if not download_url and format_streams:
+                    # Sort by quality
+                    format_streams.sort(key=lambda x: int(x.get("resolution", "0p").replace("p", "") or 0), reverse=True)
+                    download_url = format_streams[0].get("url")
+                    audio_url = None  # Not needed for combined formats
+
+                if not download_url:
+                    logger.warning(f"No download URL found in Invidious response")
+                    continue
+
+                # Download video
+                logger.info(f"Downloading video via Invidious ({title})...")
+                video_filename = output_path / f"video_{int(time.time())}.mp4"
+                temp_video = output_path / f"temp_video_{int(time.time())}.mp4"
+                temp_audio = output_path / f"temp_audio_{int(time.time())}.m4a"
+
+                # Download video stream
+                with httpx.stream("GET", download_url, timeout=300.0, follow_redirects=True) as stream:
+                    stream.raise_for_status()
+                    with open(temp_video if audio_url else video_filename, "wb") as f:
+                        for chunk in stream.iter_bytes(chunk_size=8192):
+                            f.write(chunk)
+
+                # If we have separate audio, download and merge
+                if audio_url:
+                    logger.info("Downloading audio stream...")
+                    with httpx.stream("GET", audio_url, timeout=300.0, follow_redirects=True) as stream:
+                        stream.raise_for_status()
+                        with open(temp_audio, "wb") as f:
+                            for chunk in stream.iter_bytes(chunk_size=8192):
+                                f.write(chunk)
+
+                    # Merge with FFmpeg
+                    logger.info("Merging video and audio...")
+                    import subprocess
+                    merge_cmd = [
+                        "ffmpeg", "-i", str(temp_video), "-i", str(temp_audio),
+                        "-c:v", "copy", "-c:a", "aac", "-y", str(video_filename)
+                    ]
+                    subprocess.run(merge_cmd, check=True, capture_output=True)
+
+                    # Cleanup temp files
+                    temp_video.unlink(missing_ok=True)
+                    temp_audio.unlink(missing_ok=True)
+
+                if video_filename.exists() and video_filename.stat().st_size > 0:
+                    logger.info(f"Invidious download success: {video_filename}")
+                    return video_filename
+
+            except Exception as e:
+                logger.warning(f"Invidious instance {instance} failed: {e}")
                 continue
 
         return None
 
     def _download_sync(self, url: str, output_dir: Optional[Path] = None) -> Path:
-        """Synchronous download with Cobalt fallback."""
+        """Synchronous download. Tries: Piped -> Invidious -> yt-dlp."""
         try:
             import yt_dlp
         except ImportError:
@@ -229,25 +439,22 @@ class DownloadService:
         output_path = Path(output_dir) if output_dir else self.output_dir
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Try yt-dlp first
-        try:
-            logger.info("Fetching video info...")
-            info = self._get_video_info(url)
-            logger.info(f"  Title: {info['title']}")
-            logger.info(f"  Duration: {info['duration'] // 60}:{info['duration'] % 60:02d}")
-            logger.info(f"  Channel: {info['channel']}")
-        except Exception as e:
-            logger.warning(f"yt-dlp info failed: {e}")
-            # Try Cobalt directly if yt-dlp fails
-            logger.info("Trying Cobalt API as fallback...")
-            cobalt_result = self._download_with_cobalt(url, output_path)
-            if cobalt_result:
-                return cobalt_result
-            raise RuntimeError(f"Both yt-dlp and Cobalt failed: {e}")
+        # Strategy: Try Piped first (most reliable), then Invidious, then yt-dlp
 
-        logger.info(f"Downloading video (quality: {self.quality})...")
+        # Try Piped API first (most reliable for datacenter IPs)
+        logger.info("Trying Piped API (primary method)...")
+        piped_result = self._download_with_piped(url, output_path)
+        if piped_result:
+            return piped_result
 
-        # Try yt-dlp first
+        # Try Invidious API as second option
+        logger.info("Piped failed, trying Invidious API...")
+        invidious_result = self._download_with_invidious(url, output_path)
+        if invidious_result:
+            return invidious_result
+
+        # Try yt-dlp as last resort (usually fails on datacenter IPs)
+        logger.info("Invidious failed, trying yt-dlp as last resort...")
         try:
             ydl_opts = self._get_ydl_opts(output_path)
 
@@ -278,20 +485,10 @@ class DownloadService:
             if not video_path.exists():
                 raise FileNotFoundError("Downloaded video not found")
 
+            return video_path
+
         except Exception as ytdlp_error:
-            logger.warning(f"yt-dlp download failed: {ytdlp_error}")
-            logger.info("Trying Cobalt API as fallback...")
-
-            cobalt_result = self._download_with_cobalt(url, output_path)
-            if cobalt_result:
-                return cobalt_result
-
-            raise RuntimeError(f"Both yt-dlp and Cobalt failed. yt-dlp error: {ytdlp_error}")
-
-        logger.info(f"Video saved: {video_path}")
-        logger.info(f"File size: {video_path.stat().st_size / (1024*1024):.1f} MB")
-
-        return video_path
+            raise RuntimeError(f"All download methods failed. Piped, Invidious, and yt-dlp all returned errors. Last error: {ytdlp_error}")
 
     async def download(
         self,
