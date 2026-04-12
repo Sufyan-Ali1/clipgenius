@@ -1,10 +1,11 @@
 """
 Download Service - Single Responsibility: YouTube video download
 
-Downloads videos from YouTube using yt-dlp.
+Downloads videos from YouTube using yt-dlp with Cobalt API fallback.
 """
 
 import re
+import httpx
 from pathlib import Path
 from typing import Callable, Optional
 import asyncio
@@ -13,6 +14,12 @@ from app.core.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger("download_service")
+
+# Cobalt API instances (free YouTube download proxies)
+COBALT_INSTANCES = [
+    "https://api.cobalt.tools",
+    "https://cobalt-api.hyper.lol",
+]
 
 
 class DownloadService:
@@ -143,8 +150,67 @@ class DownloadService:
                 'view_count': info.get('view_count', 0),
             }
 
+    def _download_with_cobalt(self, url: str, output_path: Path) -> Optional[Path]:
+        """Download video using Cobalt API (fallback for blocked IPs)."""
+        import time
+
+        for instance in COBALT_INSTANCES:
+            try:
+                logger.info(f"Trying Cobalt API: {instance}")
+
+                # Request download URL from Cobalt
+                response = httpx.post(
+                    f"{instance}/api/json",
+                    json={
+                        "url": url,
+                        "vQuality": "1080",
+                        "filenamePattern": "basic",
+                    },
+                    headers={
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=30.0
+                )
+
+                if response.status_code != 200:
+                    logger.warning(f"Cobalt returned {response.status_code}")
+                    continue
+
+                data = response.json()
+
+                if data.get("status") == "error":
+                    logger.warning(f"Cobalt error: {data.get('text', 'Unknown')}")
+                    continue
+
+                # Get download URL
+                download_url = data.get("url")
+                if not download_url:
+                    logger.warning("No download URL in Cobalt response")
+                    continue
+
+                # Download the video file
+                logger.info("Downloading video via Cobalt...")
+                video_filename = output_path / f"video_{int(time.time())}.mp4"
+
+                with httpx.stream("GET", download_url, timeout=300.0, follow_redirects=True) as stream:
+                    stream.raise_for_status()
+                    with open(video_filename, "wb") as f:
+                        for chunk in stream.iter_bytes(chunk_size=8192):
+                            f.write(chunk)
+
+                if video_filename.exists() and video_filename.stat().st_size > 0:
+                    logger.info(f"Cobalt download success: {video_filename}")
+                    return video_filename
+
+            except Exception as e:
+                logger.warning(f"Cobalt instance {instance} failed: {e}")
+                continue
+
+        return None
+
     def _download_sync(self, url: str, output_dir: Optional[Path] = None) -> Path:
-        """Synchronous download."""
+        """Synchronous download with Cobalt fallback."""
         try:
             import yt_dlp
         except ImportError:
@@ -153,42 +219,64 @@ class DownloadService:
         output_path = Path(output_dir) if output_dir else self.output_dir
         output_path.mkdir(parents=True, exist_ok=True)
 
-        logger.info("Fetching video info...")
-        info = self._get_video_info(url)
-        logger.info(f"  Title: {info['title']}")
-        logger.info(f"  Duration: {info['duration'] // 60}:{info['duration'] % 60:02d}")
-        logger.info(f"  Channel: {info['channel']}")
+        # Try yt-dlp first
+        try:
+            logger.info("Fetching video info...")
+            info = self._get_video_info(url)
+            logger.info(f"  Title: {info['title']}")
+            logger.info(f"  Duration: {info['duration'] // 60}:{info['duration'] % 60:02d}")
+            logger.info(f"  Channel: {info['channel']}")
+        except Exception as e:
+            logger.warning(f"yt-dlp info failed: {e}")
+            # Try Cobalt directly if yt-dlp fails
+            logger.info("Trying Cobalt API as fallback...")
+            cobalt_result = self._download_with_cobalt(url, output_path)
+            if cobalt_result:
+                return cobalt_result
+            raise RuntimeError(f"Both yt-dlp and Cobalt failed: {e}")
 
         logger.info(f"Downloading video (quality: {self.quality})...")
 
-        ydl_opts = self._get_ydl_opts(output_path)
+        # Try yt-dlp first
+        try:
+            ydl_opts = self._get_ydl_opts(output_path)
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
 
-            if 'requested_downloads' in info:
-                filename = info['requested_downloads'][0]['filepath']
-            else:
-                filename = ydl.prepare_filename(info)
-                base = Path(filename).stem
-                for ext in ['mp4', 'mkv', 'webm']:
-                    potential = output_path / f"{base}.{ext}"
-                    if potential.exists():
-                        filename = str(potential)
+                if 'requested_downloads' in info:
+                    filename = info['requested_downloads'][0]['filepath']
+                else:
+                    filename = ydl.prepare_filename(info)
+                    base = Path(filename).stem
+                    for ext in ['mp4', 'mkv', 'webm']:
+                        potential = output_path / f"{base}.{ext}"
+                        if potential.exists():
+                            filename = str(potential)
+                            break
+
+            video_path = Path(filename)
+
+            if not video_path.exists():
+                sanitized_title = re.sub(r'[^\w\s-]', '', info.get('title', 'video'))
+                sanitized_title = re.sub(r'\s+', '_', sanitized_title)
+                for file in output_path.glob(f"*{sanitized_title}*"):
+                    if file.suffix in ['.mp4', '.mkv', '.webm']:
+                        video_path = file
                         break
 
-        video_path = Path(filename)
+            if not video_path.exists():
+                raise FileNotFoundError("Downloaded video not found")
 
-        if not video_path.exists():
-            sanitized_title = re.sub(r'[^\w\s-]', '', info.get('title', 'video'))
-            sanitized_title = re.sub(r'\s+', '_', sanitized_title)
-            for file in output_path.glob(f"*{sanitized_title}*"):
-                if file.suffix in ['.mp4', '.mkv', '.webm']:
-                    video_path = file
-                    break
+        except Exception as ytdlp_error:
+            logger.warning(f"yt-dlp download failed: {ytdlp_error}")
+            logger.info("Trying Cobalt API as fallback...")
 
-        if not video_path.exists():
-            raise FileNotFoundError("Downloaded video not found")
+            cobalt_result = self._download_with_cobalt(url, output_path)
+            if cobalt_result:
+                return cobalt_result
+
+            raise RuntimeError(f"Both yt-dlp and Cobalt failed. yt-dlp error: {ytdlp_error}")
 
         logger.info(f"Video saved: {video_path}")
         logger.info(f"File size: {video_path.stat().st_size / (1024*1024):.1f} MB")
