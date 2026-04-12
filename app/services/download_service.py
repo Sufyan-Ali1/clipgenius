@@ -15,13 +15,9 @@ from app.core.logging import get_logger
 
 logger = get_logger("download_service")
 
-# Cobalt API instances (free YouTube download proxies)
-# Using Cobalt API v10 format
-COBALT_INSTANCES = [
-    "https://api.cobalt.tools",
-    "https://cobalt.canine.tools",
-    "https://api.spdload.cc",
-]
+# Cobalt API is disabled - official API now requires authentication
+# Keep as fallback list in case free instances become available
+COBALT_INSTANCES = []
 
 
 class DownloadService:
@@ -83,13 +79,14 @@ class DownloadService:
 
     def _get_ydl_opts(self, output_path: Path) -> dict:
         """Get yt-dlp options."""
+        # Format strings with proper fallbacks for videos without separate streams
         quality_map = {
-            "best": "bestvideo+bestaudio/best",
-            "4k": "bestvideo[height<=2160]+bestaudio/best[height<=2160]",
-            "2k": "bestvideo[height<=1440]+bestaudio/best[height<=1440]",
-            "1080p": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-            "720p": "bestvideo[height<=720]+bestaudio/best[height<=720]",
-            "480p": "bestvideo[height<=480]+bestaudio/best[height<=480]",
+            "best": "bestvideo*+bestaudio/best",
+            "4k": "bestvideo*[height<=2160]+bestaudio/bestvideo*+bestaudio/best",
+            "2k": "bestvideo*[height<=1440]+bestaudio/bestvideo*+bestaudio/best",
+            "1080p": "bestvideo*[height<=1080]+bestaudio/bestvideo*+bestaudio/best",
+            "720p": "bestvideo*[height<=720]+bestaudio/bestvideo*+bestaudio/best",
+            "480p": "bestvideo*[height<=480]+bestaudio/bestvideo*+bestaudio/best",
         }
 
         format_str = quality_map.get(self.quality.lower(), quality_map["best"])
@@ -103,8 +100,8 @@ class DownloadService:
             'no_warnings': False,
             'progress_hooks': [self._progress_hook],
             'merge_output_format': 'mp4',
-            # Use Android client to bypass some restrictions
-            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+            # Use multiple clients for better compatibility
+            'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
         }
 
         # Add cookies if available
@@ -134,8 +131,8 @@ class DownloadService:
             'quiet': True,
             'no_warnings': True,
             'extract_flat': False,
-            # Use Android client to bypass some restrictions
-            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+            # Use multiple clients for better compatibility
+            'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
         }
 
         # Add cookies if available
