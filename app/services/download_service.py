@@ -16,9 +16,11 @@ from app.core.logging import get_logger
 logger = get_logger("download_service")
 
 # Cobalt API instances (free YouTube download proxies)
+# Using Cobalt API v10 format
 COBALT_INSTANCES = [
     "https://api.cobalt.tools",
-    "https://cobalt-api.hyper.lol",
+    "https://cobalt.canine.tools",
+    "https://api.spdload.cc",
 ]
 
 
@@ -158,13 +160,13 @@ class DownloadService:
             try:
                 logger.info(f"Trying Cobalt API: {instance}")
 
-                # Request download URL from Cobalt
+                # Cobalt API v10 format
                 response = httpx.post(
-                    f"{instance}/api/json",
+                    instance,
                     json={
                         "url": url,
-                        "vQuality": "1080",
-                        "filenamePattern": "basic",
+                        "videoQuality": "1080",
+                        "filenameStyle": "basic",
                     },
                     headers={
                         "Accept": "application/json",
@@ -174,19 +176,30 @@ class DownloadService:
                 )
 
                 if response.status_code != 200:
-                    logger.warning(f"Cobalt returned {response.status_code}")
+                    logger.warning(f"Cobalt returned {response.status_code}: {response.text[:200]}")
                     continue
 
                 data = response.json()
+                logger.info(f"Cobalt response status: {data.get('status')}")
 
                 if data.get("status") == "error":
-                    logger.warning(f"Cobalt error: {data.get('text', 'Unknown')}")
+                    error_info = data.get("error", {})
+                    error_code = error_info.get("code", "unknown") if isinstance(error_info, dict) else str(error_info)
+                    logger.warning(f"Cobalt error: {error_code}")
                     continue
 
-                # Get download URL
+                # Get download URL - can be in "url" or need to handle "tunnel"/"redirect" status
                 download_url = data.get("url")
+                status = data.get("status")
+
+                if status == "picker":
+                    # Multiple formats available, pick first video
+                    picker = data.get("picker", [])
+                    if picker:
+                        download_url = picker[0].get("url")
+
                 if not download_url:
-                    logger.warning("No download URL in Cobalt response")
+                    logger.warning(f"No download URL in Cobalt response: {data}")
                     continue
 
                 # Download the video file

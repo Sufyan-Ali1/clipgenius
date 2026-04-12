@@ -1,23 +1,18 @@
 """
 Transcription Service - Single Responsibility: Audio to text conversion
 
-Supports both Groq Whisper API and local Whisper for speech-to-text.
+Uses Groq Whisper API for fast, cloud-based speech-to-text.
 Handles large files by chunking audio when needed.
 """
 
 import json
 import subprocess
-import os
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 import asyncio
-import warnings
 
 from app.core.config import settings
 from app.core.logging import get_logger
-
-# Suppress FP16 warning on CPU
-warnings.filterwarnings("ignore", message="FP16 is not supported on CPU")
 
 logger = get_logger("transcription_service")
 
@@ -29,32 +24,15 @@ class TranscriptionService:
     """
     Single Responsibility: Convert audio/video to text with timestamps.
 
-    Supports:
-    - Groq Whisper API (fast, cloud-based)
-    - Local Whisper (offline, requires more resources)
+    Uses Groq Whisper API for fast, cloud-based transcription.
     """
 
     def __init__(self):
-        self.provider = settings.WHISPER_PROVIDER
         self.model_name = settings.WHISPER_MODEL
         self.language = settings.WHISPER_LANGUAGE
         self.chunk_duration = settings.WHISPER_CHUNK_DURATION
         self.temp_dir = settings.TEMP_DIR
         self.temp_dir.mkdir(parents=True, exist_ok=True)
-        self._local_model = None
-
-    def _load_local_model(self):
-        """Load local Whisper model (lazy loading)."""
-        if self._local_model is None:
-            import torch
-            import whisper
-
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            # Use appropriate model for local - default to "base" if groq model specified
-            model_name = self.model_name if self.model_name in ["tiny", "base", "small", "medium", "large"] else "base"
-            logger.info(f"Loading local Whisper model '{model_name}' on {device}...")
-            self._local_model = whisper.load_model(model_name, device=device)
-            logger.info("Local model loaded successfully.")
 
     def _extract_audio(self, video_path: Path, output_format: str = "mp3") -> Path:
         """Extract audio from video file using FFmpeg."""
@@ -313,68 +291,6 @@ class TranscriptionService:
         logger.info(f"Groq transcription complete. {len(transcription['segments'])} segments.")
         return transcription
 
-    def _transcribe_local_sync(self, video_path: Path, output_path: Optional[Path] = None) -> dict:
-        """Synchronous local Whisper transcription."""
-        video_path = Path(video_path)
-        if not video_path.exists():
-            raise FileNotFoundError(f"File not found: {video_path}")
-
-        # Extract audio as WAV for local Whisper
-        audio_extensions = {".wav", ".mp3", ".flac", ".m4a", ".ogg"}
-        if video_path.suffix.lower() not in audio_extensions:
-            audio_path = self._extract_audio(video_path, output_format="wav")
-        else:
-            audio_path = video_path
-
-        self._load_local_model()
-
-        logger.info(f"Transcribing {audio_path.name} with local Whisper...")
-
-        result = self._local_model.transcribe(
-            str(audio_path),
-            language=self.language,
-            word_timestamps=True,
-            verbose=False
-        )
-
-        # Format output
-        transcription = {
-            "text": result["text"],
-            "language": result.get("language", self.language),
-            "duration": result["segments"][-1]["end"] if result["segments"] else 0,
-            "segments": []
-        }
-
-        for segment in result["segments"]:
-            seg_data = {
-                "id": segment["id"],
-                "start": round(segment["start"], 2),
-                "end": round(segment["end"], 2),
-                "text": segment["text"].strip(),
-            }
-
-            if "words" in segment:
-                seg_data["words"] = [
-                    {
-                        "word": w["word"],
-                        "start": round(w["start"], 2),
-                        "end": round(w["end"], 2)
-                    }
-                    for w in segment["words"]
-                ]
-
-            transcription["segments"].append(seg_data)
-
-        if output_path:
-            output_path = Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(output_path, "w", encoding="utf-8") as f:
-                json.dump(transcription, f, indent=2, ensure_ascii=False)
-            logger.info(f"Transcription saved: {output_path}")
-
-        logger.info(f"Local transcription complete. {len(transcription['segments'])} segments.")
-        return transcription
-
     async def transcribe(
         self,
         video_path: Path,
@@ -392,28 +308,20 @@ class TranscriptionService:
         Returns:
             Transcription dict with segments and word timestamps
         """
+        if not settings.GROQ_API_KEY:
+            raise RuntimeError("GROQ_API_KEY not set. Please set your Groq API key in .env file.")
+
         if progress_callback:
-            progress_callback(0.0, f"Starting transcription ({self.provider})...")
+            progress_callback(0.0, "Starting transcription (Groq Whisper)...")
 
         loop = asyncio.get_event_loop()
 
         if progress_callback:
             progress_callback(0.1, "Extracting and processing audio...")
 
-        if self.provider == "groq":
-            if not settings.GROQ_API_KEY:
-                logger.warning("GROQ_API_KEY not set, falling back to local Whisper")
-                transcription = await loop.run_in_executor(
-                    None, self._transcribe_local_sync, video_path, output_path
-                )
-            else:
-                transcription = await loop.run_in_executor(
-                    None, self._transcribe_groq_sync, video_path, output_path
-                )
-        else:
-            transcription = await loop.run_in_executor(
-                None, self._transcribe_local_sync, video_path, output_path
-            )
+        transcription = await loop.run_in_executor(
+            None, self._transcribe_groq_sync, video_path, output_path
+        )
 
         if progress_callback:
             progress_callback(1.0, "Transcription complete")

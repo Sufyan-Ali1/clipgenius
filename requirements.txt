@@ -1,4 +1,4 @@
-# Video Clips Extractor - Dependencies
+# Video Clips Extractor - Dependencies (Lightweight)
 # Install with: pip install -r requirements.txt
 
 # =============================================================================
@@ -14,24 +14,19 @@ pydantic-settings>=2.0.0
 aiofiles>=23.2.1
 
 # =============================================================================
-# Transcription
+# Transcription (Using Groq API - no local Whisper needed)
 # =============================================================================
-openai-whisper>=20231117
-torch>=2.0.0
+groq>=0.4.0
 
 # =============================================================================
-# LLM Providers
+# HTTP Client
 # =============================================================================
-ollama>=0.1.0
-groq>=0.4.0
-together>=1.0.0
 httpx>=0.25.0
 
 # =============================================================================
-# Video Processing
+# Video Processing (FFmpeg called directly, no Python wrappers needed)
 # =============================================================================
 ffmpeg-python>=0.2.0
-moviepy>=1.0.3
 
 # =============================================================================
 # YouTube Download
@@ -39,7 +34,7 @@ moviepy>=1.0.3
 yt-dlp>=2024.1.0
 
 # =============================================================================
-# Google Drive Upload
+# Google Drive Upload (optional)
 # =============================================================================
 google-api-python-client>=2.0.0
 google-auth-httplib2>=0.1.0
