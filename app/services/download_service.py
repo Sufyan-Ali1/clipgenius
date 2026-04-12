@@ -2,9 +2,10 @@
 Download Service - Single Responsibility: YouTube video download
 
 Downloads videos from YouTube using multiple fallback methods:
-1. Piped API (primary - most reliable for datacenter IPs)
-2. Invidious API (secondary - privacy-focused YouTube frontend)
-3. yt-dlp (last resort - usually fails on datacenter IPs)
+1. Piped API (most reliable for datacenter IPs)
+2. pytubefix (pure Python, different approach)
+3. Invidious API (privacy-focused YouTube frontend)
+4. yt-dlp (last resort - usually fails on datacenter IPs)
 """
 
 import re
@@ -317,6 +318,73 @@ class DownloadService:
 
         return None
 
+    def _download_with_pytubefix(self, url: str, output_path: Path) -> Optional[Path]:
+        """Download video using pytubefix (pure Python YouTube library)."""
+        import time
+
+        try:
+            from pytubefix import YouTube
+            from pytubefix.cli import on_progress
+        except ImportError:
+            logger.warning("pytubefix not installed")
+            return None
+
+        try:
+            logger.info("Trying pytubefix...")
+
+            yt = YouTube(url, on_progress_callback=on_progress)
+            logger.info(f"Found video: {yt.title}")
+
+            # Try to get best progressive stream (video+audio combined) first
+            stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+
+            if not stream:
+                # Try adaptive streams (separate video+audio)
+                video_stream = yt.streams.filter(adaptive=True, file_extension='mp4', only_video=True).order_by('resolution').desc().first()
+                audio_stream = yt.streams.filter(adaptive=True, only_audio=True).order_by('abr').desc().first()
+
+                if video_stream and audio_stream:
+                    logger.info(f"Downloading adaptive streams ({video_stream.resolution})...")
+                    video_filename = output_path / f"video_{int(time.time())}.mp4"
+                    temp_video = output_path / f"temp_video_{int(time.time())}.mp4"
+                    temp_audio = output_path / f"temp_audio_{int(time.time())}.mp4"
+
+                    video_stream.download(output_path=str(output_path), filename=temp_video.name)
+                    audio_stream.download(output_path=str(output_path), filename=temp_audio.name)
+
+                    # Merge with FFmpeg
+                    import subprocess
+                    logger.info("Merging video and audio...")
+                    merge_cmd = [
+                        "ffmpeg", "-i", str(temp_video), "-i", str(temp_audio),
+                        "-c:v", "copy", "-c:a", "aac", "-y", str(video_filename)
+                    ]
+                    subprocess.run(merge_cmd, check=True, capture_output=True)
+
+                    temp_video.unlink(missing_ok=True)
+                    temp_audio.unlink(missing_ok=True)
+
+                    if video_filename.exists() and video_filename.stat().st_size > 0:
+                        logger.info(f"pytubefix download success: {video_filename}")
+                        return video_filename
+                else:
+                    logger.warning("No suitable streams found")
+                    return None
+            else:
+                # Download progressive stream
+                logger.info(f"Downloading progressive stream ({stream.resolution})...")
+                video_filename = output_path / f"video_{int(time.time())}.mp4"
+                stream.download(output_path=str(output_path), filename=video_filename.name)
+
+                if video_filename.exists() and video_filename.stat().st_size > 0:
+                    logger.info(f"pytubefix download success: {video_filename}")
+                    return video_filename
+
+        except Exception as e:
+            logger.warning(f"pytubefix failed: {e}")
+
+        return None
+
     def _download_with_invidious(self, url: str, output_path: Path) -> Optional[Path]:
         """Download video using Invidious API (free YouTube frontend)."""
         import time
@@ -430,7 +498,7 @@ class DownloadService:
         return None
 
     def _download_sync(self, url: str, output_dir: Optional[Path] = None) -> Path:
-        """Synchronous download. Tries: Piped -> Invidious -> yt-dlp."""
+        """Synchronous download. Tries: Piped -> pytubefix -> Invidious -> yt-dlp."""
         try:
             import yt_dlp
         except ImportError:
@@ -439,22 +507,28 @@ class DownloadService:
         output_path = Path(output_dir) if output_dir else self.output_dir
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Strategy: Try Piped first (most reliable), then Invidious, then yt-dlp
+        # Strategy: Try multiple methods in order of reliability
 
         # Try Piped API first (most reliable for datacenter IPs)
-        logger.info("Trying Piped API (primary method)...")
+        logger.info("Method 1/4: Trying Piped API...")
         piped_result = self._download_with_piped(url, output_path)
         if piped_result:
             return piped_result
 
-        # Try Invidious API as second option
-        logger.info("Piped failed, trying Invidious API...")
+        # Try pytubefix (pure Python, different approach)
+        logger.info("Method 2/4: Trying pytubefix...")
+        pytubefix_result = self._download_with_pytubefix(url, output_path)
+        if pytubefix_result:
+            return pytubefix_result
+
+        # Try Invidious API
+        logger.info("Method 3/4: Trying Invidious API...")
         invidious_result = self._download_with_invidious(url, output_path)
         if invidious_result:
             return invidious_result
 
         # Try yt-dlp as last resort (usually fails on datacenter IPs)
-        logger.info("Invidious failed, trying yt-dlp as last resort...")
+        logger.info("Method 4/4: Trying yt-dlp as last resort...")
         try:
             ydl_opts = self._get_ydl_opts(output_path)
 
@@ -488,7 +562,7 @@ class DownloadService:
             return video_path
 
         except Exception as ytdlp_error:
-            raise RuntimeError(f"All download methods failed. Piped, Invidious, and yt-dlp all returned errors. Last error: {ytdlp_error}")
+            raise RuntimeError(f"All 4 download methods failed (Piped, pytubefix, Invidious, yt-dlp). Last error: {ytdlp_error}")
 
     async def download(
         self,
