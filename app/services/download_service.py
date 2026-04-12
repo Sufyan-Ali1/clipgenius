@@ -31,6 +31,21 @@ class DownloadService:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.quality = quality or settings.YOUTUBE_QUALITY
         self.format = settings.YOUTUBE_FORMAT
+        self._cookies_path = None
+
+    def _get_cookies_file(self) -> Optional[Path]:
+        """Create temp cookies file from environment variable."""
+        if not settings.YOUTUBE_COOKIES:
+            return None
+
+        # Write cookies to temp file (only once)
+        if self._cookies_path is None or not self._cookies_path.exists():
+            settings.TEMP_DIR.mkdir(parents=True, exist_ok=True)
+            self._cookies_path = settings.TEMP_DIR / "yt_cookies.txt"
+            self._cookies_path.write_text(settings.YOUTUBE_COOKIES)
+            logger.info("YouTube cookies loaded from environment variable")
+
+        return self._cookies_path
 
     def is_youtube_url(self, url: str) -> bool:
         """Check if URL is a YouTube video URL."""
@@ -52,7 +67,7 @@ class DownloadService:
 
         format_str = quality_map.get(self.quality.lower(), quality_map["best"])
 
-        return {
+        opts = {
             'format': format_str,
             'outtmpl': str(output_path / '%(title)s.%(ext)s'),
             'restrictfilenames': True,
@@ -62,6 +77,13 @@ class DownloadService:
             'progress_hooks': [self._progress_hook],
             'merge_output_format': 'mp4',
         }
+
+        # Add cookies if available
+        cookies_path = self._get_cookies_file()
+        if cookies_path:
+            opts['cookiefile'] = str(cookies_path)
+
+        return opts
 
     def _progress_hook(self, d: dict):
         """Progress callback for download status."""
@@ -84,6 +106,11 @@ class DownloadService:
             'no_warnings': True,
             'extract_flat': False,
         }
+
+        # Add cookies if available
+        cookies_path = self._get_cookies_file()
+        if cookies_path:
+            ydl_opts['cookiefile'] = str(cookies_path)
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)

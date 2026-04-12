@@ -7,8 +7,9 @@ Cuts video clips using FFmpeg with optional vertical conversion.
 import subprocess
 import json
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 import asyncio
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -28,7 +29,7 @@ class VideoService:
         self.vertical_method = settings.VERTICAL_METHOD
         self.vertical_width = settings.VERTICAL_WIDTH
         self.vertical_height = settings.VERTICAL_HEIGHT
-        self.video_crf = 23  # Quality setting
+        self.video_crf = 18  # High quality setting (visually lossless)
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._check_ffmpeg()
@@ -129,38 +130,69 @@ class VideoService:
             error_msg = e.stderr.decode() if e.stderr else str(e)
             raise RuntimeError(f"FFmpeg error cutting clip: {error_msg}")
 
+    def _cut_single_clip_task(
+        self,
+        video_path: Path,
+        clip: dict,
+        output_prefix: str = "clip"
+    ) -> Tuple[int, Optional[Path], Optional[str]]:
+        """Task for cutting a single clip (used in parallel processing)."""
+        clip_num = clip.get("clip_number", 1)
+        filename = clip.get("filename", f"{output_prefix}_{clip_num:03d}.{self.output_format}")
+        output_path = self.output_dir / filename
+
+        try:
+            self._cut_single_clip(
+                video_path,
+                clip["start_seconds"],
+                clip["end_seconds"],
+                output_path
+            )
+            clip["output_path"] = str(output_path)
+            return (clip_num, output_path, None)
+        except Exception as e:
+            return (clip_num, None, str(e))
+
     def _cut_clips_sync(
         self,
         video_path: Path,
         clips: List[dict],
         output_prefix: str = "clip"
     ) -> List[Path]:
-        """Synchronous clip cutting."""
+        """Synchronous parallel clip cutting."""
         video_path = Path(video_path)
         if not video_path.exists():
             raise FileNotFoundError(f"Video not found: {video_path}")
 
-        logger.info(f"Cutting {len(clips)} clips from {video_path.name}...")
+        logger.info(f"Cutting {len(clips)} clips from {video_path.name} (parallel)...")
+
+        # Use ThreadPoolExecutor for parallel cutting
+        # Limit workers to avoid overwhelming the system
+        max_workers = min(len(clips), 3)
         output_paths = []
 
-        for clip in clips:
-            clip_num = clip.get("clip_number", len(output_paths) + 1)
-            filename = clip.get("filename", f"{output_prefix}_{clip_num:03d}.{self.output_format}")
-            output_path = self.output_dir / filename
-
-            try:
-                self._cut_single_clip(
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all clip cutting tasks
+            futures = {
+                executor.submit(
+                    self._cut_single_clip_task,
                     video_path,
-                    clip["start_seconds"],
-                    clip["end_seconds"],
-                    output_path
-                )
-                output_paths.append(output_path)
-                clip["output_path"] = str(output_path)
-                logger.info(f"  Cut clip {clip_num}: {output_path.name}")
-            except Exception as e:
-                logger.error(f"  Error cutting clip {clip_num}: {e}")
-                continue
+                    clip,
+                    output_prefix
+                ): clip for clip in clips
+            }
+
+            # Collect results as they complete
+            for future in as_completed(futures):
+                clip_num, output_path, error = future.result()
+                if output_path:
+                    output_paths.append(output_path)
+                    logger.info(f"  Cut clip {clip_num}: {output_path.name}")
+                else:
+                    logger.error(f"  Error cutting clip {clip_num}: {error}")
+
+        # Sort by clip number to maintain order
+        output_paths.sort(key=lambda p: p.name)
 
         logger.info(f"Successfully cut {len(output_paths)} clips")
         return output_paths

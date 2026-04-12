@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     # YouTube Settings
     YOUTUBE_QUALITY: str = "best"  # Options: best, 4k, 2k, 1080p, 720p, 480p
     YOUTUBE_FORMAT: str = "bestvideo+bestaudio/best"
+    YOUTUBE_COOKIES: Optional[str] = None  # Cookies content for YouTube auth (paste cookies.txt content)
     DELETE_DOWNLOADED_VIDEO: bool = True
 
     # Cleanup
