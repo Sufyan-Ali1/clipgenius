@@ -29,8 +29,10 @@ class Settings(BaseSettings):
     TEMP_DIR: Path = STORAGE_DIR / "temp"
 
     # Whisper Settings
-    WHISPER_MODEL: str = "base"
+    WHISPER_PROVIDER: str = "groq"  # Options: groq, local
+    WHISPER_MODEL: str = "whisper-large-v3"  # For Groq; use "base", "small", "medium" for local
     WHISPER_LANGUAGE: Optional[str] = None
+    WHISPER_CHUNK_DURATION: int = 600  # 10 minutes per chunk (for files > 25MB)
 
     # LLM Settings
     LLM_PROVIDER: str = "groq"

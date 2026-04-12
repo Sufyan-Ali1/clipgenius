@@ -13,6 +13,11 @@ services:
       - LLM_PROVIDER=${LLM_PROVIDER:-groq}
       - LLM_MODEL=${LLM_MODEL:-llama-3.3-70b-versatile}
 
+      # Whisper Settings
+      - WHISPER_PROVIDER=${WHISPER_PROVIDER:-groq}
+      - WHISPER_MODEL=${WHISPER_MODEL:-whisper-large-v3}
+      - WHISPER_CHUNK_DURATION=${WHISPER_CHUNK_DURATION:-600}
+
       # Google Drive
       - GOOGLE_CREDENTIALS_PATH=/app/credentials/service-account.json
       - GOOGLE_DRIVE_FOLDER_ID=${GOOGLE_DRIVE_FOLDER_ID}
