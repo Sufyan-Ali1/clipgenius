@@ -45,22 +45,23 @@ class DownloadService:
             self._cookies_path = settings.TEMP_DIR / "yt_cookies.txt"
 
             cookies_content = settings.YOUTUBE_COOKIES.strip()
+            logger.info(f"Raw cookies length: {len(cookies_content)}, starts with: {cookies_content[:20]}")
 
             # Check if content is base64 encoded (for Render deployment)
             # Base64 strings don't contain spaces or # at the start
-            if not cookies_content.startswith('#') and ' ' not in cookies_content[:50]:
+            if not cookies_content.startswith('#') and '\t' not in cookies_content[:100]:
                 try:
                     import base64
                     cookies_content = base64.b64decode(cookies_content).decode('utf-8')
-                    logger.info("Decoded base64 cookies")
-                except Exception:
-                    pass  # Not base64, use as-is
+                    logger.info(f"Decoded base64 cookies ({len(cookies_content)} bytes)")
+                except Exception as e:
+                    logger.warning(f"Base64 decode failed: {e}")
 
             # Fix potential line break issues from environment variable
             cookies_content = cookies_content.replace('\\n', '\n')
 
             self._cookies_path.write_text(cookies_content)
-            logger.info(f"YouTube cookies loaded ({len(cookies_content)} bytes)")
+            logger.info(f"YouTube cookies saved to {self._cookies_path}")
 
         return self._cookies_path
 
@@ -93,6 +94,8 @@ class DownloadService:
             'no_warnings': False,
             'progress_hooks': [self._progress_hook],
             'merge_output_format': 'mp4',
+            # Use Android client to bypass some restrictions
+            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         }
 
         # Add cookies if available
@@ -122,6 +125,8 @@ class DownloadService:
             'quiet': True,
             'no_warnings': True,
             'extract_flat': False,
+            # Use Android client to bypass some restrictions
+            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         }
 
         # Add cookies if available
