@@ -3,8 +3,8 @@
 
 # Google credentials (NEVER commit!)
 credentials/
-*.json
 
+node_modules/
 # Storage folders (temporary processing files)
 storage/
 
