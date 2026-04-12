@@ -44,9 +44,19 @@ class DownloadService:
             settings.TEMP_DIR.mkdir(parents=True, exist_ok=True)
             self._cookies_path = settings.TEMP_DIR / "yt_cookies.txt"
 
+            cookies_content = settings.YOUTUBE_COOKIES.strip()
+
+            # Check if content is base64 encoded (for Render deployment)
+            # Base64 strings don't contain spaces or # at the start
+            if not cookies_content.startswith('#') and ' ' not in cookies_content[:50]:
+                try:
+                    import base64
+                    cookies_content = base64.b64decode(cookies_content).decode('utf-8')
+                    logger.info("Decoded base64 cookies")
+                except Exception:
+                    pass  # Not base64, use as-is
+
             # Fix potential line break issues from environment variable
-            cookies_content = settings.YOUTUBE_COOKIES
-            # Replace literal \n with actual newlines (env vars can mangle this)
             cookies_content = cookies_content.replace('\\n', '\n')
 
             self._cookies_path.write_text(cookies_content)
