@@ -36,14 +36,21 @@ class DownloadService:
     def _get_cookies_file(self) -> Optional[Path]:
         """Create temp cookies file from environment variable."""
         if not settings.YOUTUBE_COOKIES:
+            logger.warning("YOUTUBE_COOKIES environment variable not set")
             return None
 
         # Write cookies to temp file (only once)
         if self._cookies_path is None or not self._cookies_path.exists():
             settings.TEMP_DIR.mkdir(parents=True, exist_ok=True)
             self._cookies_path = settings.TEMP_DIR / "yt_cookies.txt"
-            self._cookies_path.write_text(settings.YOUTUBE_COOKIES)
-            logger.info("YouTube cookies loaded from environment variable")
+
+            # Fix potential line break issues from environment variable
+            cookies_content = settings.YOUTUBE_COOKIES
+            # Replace literal \n with actual newlines (env vars can mangle this)
+            cookies_content = cookies_content.replace('\\n', '\n')
+
+            self._cookies_path.write_text(cookies_content)
+            logger.info(f"YouTube cookies loaded ({len(cookies_content)} bytes)")
 
         return self._cookies_path
 
