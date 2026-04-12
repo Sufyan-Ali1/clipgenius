@@ -1,0 +1,570 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #e4e4e7;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Home Page */
+.home .hero-section {
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.home .hero-section h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(90deg, #a855f7, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+
+.home .hero-section p {
+  color: #a1a1aa;
+  font-size: 1.1rem;
+}
+
+/* Job Form */
+.job-form {
+  margin: 2rem 0;
+}
+
+.job-form .input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.job-form input {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  border: 2px solid #3f3f46;
+  border-radius: 12px;
+  background: #27272a;
+  color: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.job-form input:focus {
+  border-color: #a855f7;
+}
+
+.job-form input::placeholder {
+  color: #71717a;
+}
+
+.job-form button {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #a855f7, #ec4899);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.job-form button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.job-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.job-form .error {
+  color: #ef4444;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.job-form .options-group {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.job-form .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: #a1a1aa;
+  font-size: 0.95rem;
+}
+
+.job-form .checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #a855f7;
+  cursor: pointer;
+}
+
+.job-form .checkbox-label:hover {
+  color: #e4e4e7;
+}
+
+/* Recent Jobs */
+.recent-section {
+  margin-top: 3rem;
+}
+
+.recent-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #d4d4d8;
+}
+
+.recent-section .loading,
+.recent-section .empty {
+  color: #71717a;
+  text-align: center;
+  padding: 2rem;
+}
+
+.jobs-list {
+  list-style: none;
+}
+
+.jobs-list li {
+  margin-bottom: 0.5rem;
+}
+
+.jobs-list a {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: #27272a;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #e4e4e7;
+  transition: background 0.2s;
+}
+
+.jobs-list a:hover {
+  background: #3f3f46;
+}
+
+.jobs-list .job-id {
+  font-family: monospace;
+  color: #a1a1aa;
+}
+
+.jobs-list .job-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.jobs-list .job-progress {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* Job Status Page */
+.job-status {
+  padding: 1rem 0;
+}
+
+.job-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.job-header h1 {
+  font-size: 1.5rem;
+}
+
+.job-header .job-id {
+  font-family: monospace;
+  color: #71717a;
+  font-size: 0.9rem;
+  margin-left: auto;
+}
+
+.back-link {
+  color: #a855f7;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+/* Progress Bar */
+.progress-container {
+  background: #27272a;
+  padding: 1.5rem;
+  border-radius: 16px;
+  margin-bottom: 2rem;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.percentage {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.progress-bar {
+  height: 12px;
+  background: #3f3f46;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.current-step {
+  margin-top: 1rem;
+  color: #a1a1aa;
+  font-size: 0.9rem;
+}
+
+/* Steps List */
+.steps-list {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 1.5rem;
+  padding: 1rem 0;
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+
+.step-indicator {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.step-content {
+  text-align: center;
+}
+
+.step-label {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  max-width: 80px;
+  line-height: 1.2;
+}
+
+/* Step States */
+.step-pending .step-indicator {
+  background: #3f3f46;
+  color: #71717a;
+}
+
+.step-current .step-indicator {
+  background: #a855f7;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.2);
+}
+
+.step-current .step-label {
+  color: #a855f7;
+  font-weight: 600;
+}
+
+.step-completed .step-indicator {
+  background: #22c55e;
+  color: #fff;
+}
+
+.step-completed .step-label {
+  color: #22c55e;
+}
+
+.step-failed .step-indicator {
+  background: #ef4444;
+  color: #fff;
+}
+
+.step-check {
+  font-size: 1rem;
+}
+
+.step-number {
+  font-size: 0.85rem;
+}
+
+/* Spinner Animation */
+.step-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Connector Line */
+.step-connector {
+  position: absolute;
+  top: 18px;
+  left: calc(50% + 20px);
+  width: calc(100% - 40px);
+  height: 2px;
+  background: #3f3f46;
+}
+
+.step-completed + .step-item .step-connector,
+.step-completed .step-connector {
+  background: #22c55e;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .steps-list {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .step-item {
+    flex: 0 0 calc(33.33% - 1rem);
+  }
+
+  .step-connector {
+    display: none;
+  }
+}
+
+/* Error Section */
+.error-section {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.error-section h3 {
+  color: #ef4444;
+  margin-bottom: 0.5rem;
+}
+
+.error-message {
+  color: #fca5a5;
+}
+
+.error-card {
+  text-align: center;
+  padding: 3rem;
+}
+
+.error-card h2 {
+  color: #ef4444;
+  margin-bottom: 1rem;
+}
+
+.back-btn {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: #a855f7;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+/* Clips List */
+.clips-list {
+  margin-top: 2rem;
+}
+
+.clips-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.clips-header h3 {
+  font-size: 1.25rem;
+}
+
+.drive-link {
+  padding: 0.5rem 1rem;
+  background: #22c55e;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.drive-link:hover {
+  background: #16a34a;
+}
+
+.clips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.clip-card {
+  background: #27272a;
+  padding: 1.5rem;
+  border-radius: 16px;
+  border: 1px solid #3f3f46;
+}
+
+.clip-number {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #a855f7;
+  margin-bottom: 1rem;
+}
+
+.clip-info {
+  margin-bottom: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.info-row .label {
+  color: #71717a;
+}
+
+.info-row .score {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.clip-hook {
+  font-style: italic;
+  color: #a1a1aa;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #1a1a2e;
+  border-radius: 8px;
+}
+
+.clip-filename {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #52525b;
+  margin-bottom: 1rem;
+  word-break: break-all;
+}
+
+.download-btn {
+  display: block;
+  text-align: center;
+  padding: 0.5rem;
+  background: #3b82f6;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.download-btn:hover {
+  background: #2563eb;
+}
+
+/* Summary */
+.summary {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #27272a;
+  border-radius: 12px;
+  color: #a1a1aa;
+  font-size: 0.9rem;
+}
+
+.summary p {
+  margin-bottom: 0.25rem;
+}
+
+/* Loading */
+.loading-spinner {
+  text-align: center;
+  padding: 3rem;
+  color: #a1a1aa;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .app {
+    padding: 1rem;
+  }
+
+  .job-form .input-group {
+    flex-direction: column;
+  }
+
+  .job-form button {
+    width: 100%;
+  }
+
+  .home .hero-section h1 {
+    font-size: 1.75rem;
+  }
+}
