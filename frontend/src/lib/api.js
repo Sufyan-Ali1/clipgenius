@@ -57,3 +57,28 @@ export async function listJobs() {
 export function getClipDownloadUrl(jobId, clipNumber) {
   return `${API_URL}/api/v1/jobs/${jobId}/clips/${clipNumber}/download`;
 }
+
+export async function uploadVideo(file, options = {}, onProgress = null) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  // Add optional parameters
+  if (options.num_clips) formData.append('num_clips', options.num_clips);
+  if (options.min_duration) formData.append('min_duration', options.min_duration);
+  if (options.max_duration) formData.append('max_duration', options.max_duration);
+  if (options.add_subtitles !== undefined) formData.append('add_subtitles', options.add_subtitles);
+  if (options.vertical_mode !== undefined) formData.append('vertical_mode', options.vertical_mode);
+  if (options.video_quality) formData.append('video_quality', options.video_quality);
+
+  const res = await fetch(`${API_URL}/api/v1/jobs/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || 'Failed to upload video');
+  }
+
+  return res.json();
+}

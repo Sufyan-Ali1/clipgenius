@@ -120,6 +120,199 @@ body {
   color: #e4e4e7;
 }
 
+/* Input Mode Tabs */
+.input-mode-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.input-mode-tabs .tab {
+  flex: 1;
+  padding: 1rem;
+  border: 2px solid #3f3f46;
+  border-radius: 12px;
+  background: #27272a;
+  color: #a1a1aa;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.input-mode-tabs .tab:hover:not(:disabled) {
+  border-color: #52525b;
+  color: #e4e4e7;
+}
+
+.input-mode-tabs .tab.active {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.1);
+  color: #e4e4e7;
+}
+
+.input-mode-tabs .tab-badge {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+  background: #22c55e;
+  color: #fff;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.input-mode-tabs .tab-badge.warning {
+  background: #f59e0b;
+}
+
+/* Upload Area */
+.upload-area {
+  border: 2px dashed #3f3f46;
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #27272a;
+  margin-bottom: 1rem;
+}
+
+.upload-area:hover {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.05);
+}
+
+.upload-area.drag-active {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.upload-area.has-file {
+  cursor: default;
+  border-style: solid;
+  border-color: #22c55e;
+}
+
+.upload-prompt {
+  color: #a1a1aa;
+}
+
+.upload-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.upload-prompt p {
+  margin-bottom: 0.5rem;
+}
+
+.upload-hint {
+  color: #71717a;
+  font-size: 0.9rem;
+}
+
+.upload-formats {
+  color: #52525b;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+/* File Info */
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem;
+}
+
+.file-icon {
+  font-size: 2.5rem;
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+}
+
+.file-name {
+  font-weight: 600;
+  color: #e4e4e7;
+  word-break: break-all;
+  text-align: left;
+}
+
+.file-size {
+  color: #71717a;
+  font-size: 0.9rem;
+}
+
+.remove-file {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.remove-file:hover {
+  background: #dc2626;
+}
+
+/* YouTube Input */
+.youtube-input {
+  margin-bottom: 1rem;
+}
+
+.youtube-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid #f59e0b;
+  color: #fbbf24;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.youtube-input input {
+  width: 100%;
+}
+
+/* Submit Button */
+.job-form .submit-btn {
+  width: 100%;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #a855f7, #ec4899);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
+  margin-top: 0.5rem;
+}
+
+.job-form .submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.job-form .submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Recent Jobs */
 .recent-section {
   margin-top: 3rem;

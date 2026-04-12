@@ -2,9 +2,11 @@
 Job management endpoints
 """
 
+import time
+import aiofiles
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core.config import settings
@@ -17,6 +19,10 @@ from app.workers.pipeline_worker import run_pipeline
 logger = get_logger("jobs_api")
 
 router = APIRouter()
+
+# Allowed video extensions
+ALLOWED_EXTENSIONS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v"}
+MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
 
 
 @router.post(
@@ -79,6 +85,114 @@ async def create_job(
     background_tasks.add_task(run_pipeline, job.job_id, request)
 
     return job
+
+
+@router.post(
+    "/upload",
+    response_model=JobResponse,
+    status_code=201,
+    summary="Upload video and create job",
+    description="""Upload a video file directly and create a processing job.
+
+Supports MP4, MKV, MOV, AVI, WebM formats up to 500MB.
+This is the most reliable method - no YouTube download issues.""",
+    responses={
+        201: {"description": "Job created successfully"},
+        400: {"model": ErrorResponse, "description": "Invalid file"},
+        413: {"model": ErrorResponse, "description": "File too large"},
+    },
+)
+async def upload_video(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="Video file to process"),
+    num_clips: Optional[int] = Form(default=None, ge=1, le=20),
+    min_duration: Optional[int] = Form(default=None, ge=15, le=120),
+    max_duration: Optional[int] = Form(default=None, ge=30, le=180),
+    add_subtitles: Optional[bool] = Form(default=None),
+    vertical_mode: Optional[bool] = Form(default=None),
+    video_quality: Optional[str] = Form(default=None),
+    job_service: JobService = Depends(get_job_service),
+) -> JobResponse:
+    """
+    Upload a video file and create a processing job.
+
+    This endpoint accepts direct video file uploads, bypassing any YouTube
+    download issues. It's the most reliable method for processing videos.
+
+    Args:
+        file: Video file (MP4, MKV, MOV, AVI, WebM)
+        num_clips: Number of clips to extract (1-20)
+        min_duration: Minimum clip duration in seconds
+        max_duration: Maximum clip duration in seconds
+        add_subtitles: Add subtitles to clips
+        vertical_mode: Convert to vertical (9:16) format
+        video_quality: Output quality setting
+
+    Returns:
+        JobResponse with job details
+    """
+    # Validate file extension
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type '{file_ext}'. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
+
+    # Check file size (read in chunks to avoid memory issues)
+    file_size = 0
+    chunk_size = 1024 * 1024  # 1MB chunks
+
+    # Save file while checking size
+    settings.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    safe_filename = f"upload_{int(time.time())}_{file.filename.replace(' ', '_')}"
+    file_path = settings.UPLOADS_DIR / safe_filename
+
+    try:
+        async with aiofiles.open(file_path, 'wb') as out_file:
+            while chunk := await file.read(chunk_size):
+                file_size += len(chunk)
+                if file_size > MAX_FILE_SIZE:
+                    # Clean up partial file
+                    await out_file.close()
+                    file_path.unlink(missing_ok=True)
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+                    )
+                await out_file.write(chunk)
+
+        logger.info(f"Uploaded video saved: {file_path} ({file_size / (1024*1024):.1f}MB)")
+
+        # Create job request with uploaded file path
+        request = JobRequest(
+            input_source=str(file_path),
+            num_clips=num_clips,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            add_subtitles=add_subtitles,
+            vertical_mode=vertical_mode,
+            video_quality=video_quality,
+        )
+
+        # Create job in service
+        job = job_service.create_job(request)
+
+        # Schedule background processing
+        background_tasks.add_task(run_pipeline, job.job_id, request)
+
+        return job
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Clean up on error
+        file_path.unlink(missing_ok=True)
+        logger.error(f"Upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @router.get(
