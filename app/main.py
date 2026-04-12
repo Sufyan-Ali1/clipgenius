@@ -4,12 +4,14 @@ FastAPI Application - Main entry point
 Video Clips Extractor REST API
 """
 
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.api import api_router
+from app.workers.cleanup_worker import run_cleanup_loop
 
 # Setup logging
 setup_logging()
@@ -67,10 +69,15 @@ app.include_router(health_router)
 async def startup_event():
     """Initialize on startup."""
     settings.ensure_directories()
+
+    # Start cleanup worker in background
+    asyncio.create_task(run_cleanup_loop())
+
     print(f"\n{'='*60}")
     print(f"  {settings.API_TITLE} v{settings.API_VERSION}")
     print(f"  Running on http://{settings.HOST}:{settings.PORT}")
     print(f"  Docs: http://{settings.HOST}:{settings.PORT}/docs")
+    print(f"  Clip retention: {settings.CLIP_RETENTION_HOURS} hour(s)")
     print(f"{'='*60}\n")
 
 

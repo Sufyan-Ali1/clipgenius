@@ -16,7 +16,8 @@ services:
       # Google Drive
       - GOOGLE_CREDENTIALS_PATH=/app/credentials/service-account.json
       - GOOGLE_DRIVE_FOLDER_ID=${GOOGLE_DRIVE_FOLDER_ID}
-      - GOOGLE_DRIVE_ENABLED=${GOOGLE_DRIVE_ENABLED:-true}
+      - GOOGLE_DRIVE_ENABLED=${GOOGLE_DRIVE_ENABLED:-false}
+      - CLIP_RETENTION_HOURS=${CLIP_RETENTION_HOURS:-1}
 
       # Clip Settings
       - NUM_CLIPS=${NUM_CLIPS:-5}
@@ -26,7 +27,7 @@ services:
 
       # Video Settings
       - VERTICAL_MODE=${VERTICAL_MODE:-true}
-      - ADD_SUBTITLES=${ADD_SUBTITLES:-true}
+      - ADD_SUBTITLES=${ADD_SUBTITLES:-false}
     volumes:
       # Mount credentials file
       - ./credentials:/app/credentials:ro

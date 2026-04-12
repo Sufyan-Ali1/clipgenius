@@ -49,6 +49,7 @@ class JobResponse(BaseModel):
     created_at: datetime = Field(..., description="Job creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
     input_source: str = Field(..., description="Original input source")
+    add_subtitles: bool = Field(default=False, description="Whether subtitles are enabled")
     results: Optional[JobResults] = Field(None, description="Job results when completed")
     error: Optional[str] = Field(None, description="Error message if failed")
 

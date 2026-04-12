@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from threading import Lock
 
+from app.core.config import settings
 from app.models.enums import JobStatus
 from app.models.requests import JobRequest
 from app.models.responses import JobResponse, JobResults
@@ -47,6 +48,9 @@ class JobService:
         job_id = str(uuid.uuid4())
         now = datetime.now()
 
+        # Get add_subtitles value from request or fall back to settings
+        add_subtitles = request.add_subtitles if request.add_subtitles is not None else settings.ADD_SUBTITLES
+
         job = JobResponse(
             job_id=job_id,
             status=JobStatus.PENDING,
@@ -55,6 +59,7 @@ class JobService:
             created_at=now,
             updated_at=now,
             input_source=request.input_source,
+            add_subtitles=add_subtitles,
             results=None,
             error=None,
         )

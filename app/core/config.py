@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     VIDEO_QUALITY: str = "high"
 
     # Subtitle Settings
-    ADD_SUBTITLES: bool = True
+    ADD_SUBTITLES: bool = False  # Disabled by default, user can enable via frontend
     SUBTITLE_FONT: str = "Arial"
     SUBTITLE_FONT_SIZE: int = 24
     SUBTITLE_COLOR: str = "white"
@@ -67,8 +67,11 @@ class Settings(BaseSettings):
     # Google Drive Settings
     GOOGLE_CREDENTIALS_PATH: Optional[str] = None
     GOOGLE_DRIVE_FOLDER_ID: Optional[str] = None
-    GOOGLE_DRIVE_ENABLED: bool = True
-    DELETE_CLIPS_AFTER_UPLOAD: bool = True  # Delete local clips after Drive upload
+    GOOGLE_DRIVE_ENABLED: bool = False  # Disabled - clips served from server
+    DELETE_CLIPS_AFTER_UPLOAD: bool = True
+
+    # Clip Retention Settings
+    CLIP_RETENTION_HOURS: int = 1  # Auto-delete clips after this many hours
 
     # YouTube Settings
     YOUTUBE_QUALITY: str = "best"  # Options: best, 4k, 2k, 1080p, 720p, 480p

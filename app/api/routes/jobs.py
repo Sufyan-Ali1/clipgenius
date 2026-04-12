@@ -2,13 +2,19 @@
 Job management endpoints
 """
 
+from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 
+from app.core.config import settings
+from app.core.logging import get_logger
 from app.models.requests import JobRequest
 from app.models.responses import JobResponse, JobListResponse, JobResults, ErrorResponse
 from app.services.job_service import JobService, get_job_service
 from app.workers.pipeline_worker import run_pipeline
+
+logger = get_logger("jobs_api")
 
 router = APIRouter()
 
@@ -233,3 +239,84 @@ async def cancel_job(
         raise HTTPException(status_code=400, detail=f"Failed to cancel job {job_id}")
 
     return cancelled_job
+
+
+@router.get(
+    "/{job_id}/clips/{clip_number}/download",
+    summary="Download clip",
+    description="Download a specific clip file",
+    responses={
+        200: {"description": "Clip file", "content": {"video/mp4": {}}},
+        404: {"model": ErrorResponse, "description": "Clip not found"},
+    },
+)
+async def download_clip(
+    job_id: str,
+    clip_number: int,
+    job_service: JobService = Depends(get_job_service),
+) -> FileResponse:
+    """
+    Download a clip file by job ID and clip number.
+
+    Args:
+        job_id: Unique job identifier
+        clip_number: Clip number (1-based)
+        job_service: Job service dependency
+
+    Returns:
+        FileResponse with the clip video file
+
+    Raises:
+        HTTPException: If job not found, not completed, or clip doesn't exist
+    """
+    logger.info(f"Download request: job={job_id}, clip={clip_number}")
+
+    job = job_service.get_job(job_id)
+
+    if not job:
+        logger.warning(f"Job not found: {job_id}")
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    if not job.results or not job.results.clips:
+        logger.warning(f"Job has no results: {job_id}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job {job_id} has no results yet"
+        )
+
+    logger.info(f"Job has {len(job.results.clips)} clips")
+
+    # Find the clip
+    clip = next(
+        (c for c in job.results.clips if c.clip_number == clip_number),
+        None
+    )
+
+    if not clip:
+        logger.warning(f"Clip {clip_number} not found. Available: {[c.clip_number for c in job.results.clips]}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Clip {clip_number} not found in job {job_id}"
+        )
+
+    # Find the file
+    clip_path = settings.OUTPUTS_DIR / clip.filename
+    logger.info(f"Looking for file: {clip_path}")
+
+    if not clip_path.exists():
+        logger.warning(f"File not found: {clip_path}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Clip file not found: {clip.filename}. It may have been deleted."
+        )
+
+    logger.info(f"Serving file: {clip_path}")
+
+    return FileResponse(
+        path=clip_path,
+        filename=clip.filename,
+        media_type="video/mp4",
+        headers={
+            "Content-Disposition": f'attachment; filename="{clip.filename}"'
+        }
+    )
