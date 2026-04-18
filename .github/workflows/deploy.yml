@@ -82,3 +82,4 @@ jobs:
           source: "frontend/dist/*"
           target: "/var/www/clipgenius"
           strip_components: 2
+          overwrite: true
