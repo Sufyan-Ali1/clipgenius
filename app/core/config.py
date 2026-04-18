@@ -83,6 +83,13 @@ class Settings(BaseSettings):
     YOUTUBE_COOKIES: Optional[str] = None  # Cookies content for YouTube auth (paste cookies.txt content)
     DELETE_DOWNLOADED_VIDEO: bool = True
 
+    # Residential Proxy Settings (IPRoyal)
+    PROXY_ENABLED: bool = False
+    PROXY_HOST: Optional[str] = None  # e.g., geo.iproyal.com
+    PROXY_PORT: Optional[int] = None  # e.g., 12321
+    PROXY_USER: Optional[str] = None
+    PROXY_PASS: Optional[str] = None
+
     # Cleanup
     CLEANUP_TEMP: bool = True
     VERBOSE: bool = True

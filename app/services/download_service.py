@@ -2,17 +2,20 @@
 Download Service - Single Responsibility: YouTube video download
 
 Downloads videos from YouTube using multiple fallback methods:
-1. Piped API (most reliable for datacenter IPs)
-2. pytubefix (pure Python, different approach)
-3. Invidious API (privacy-focused YouTube frontend)
-4. yt-dlp (last resort - usually fails on datacenter IPs)
+1. Residential Proxy + yt-dlp (most reliable - extracts URL via proxy, downloads directly)
+2. Piped API (free, no proxy needed)
+3. pytubefix (pure Python, different approach)
+4. Invidious API (privacy-focused YouTube frontend)
+5. yt-dlp direct (last resort - usually fails on datacenter IPs)
 """
 
 import re
 import httpx
+import subprocess
 from pathlib import Path
 from typing import Callable, Optional
 import asyncio
+import time
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -55,6 +58,175 @@ class DownloadService:
         self.quality = quality or settings.YOUTUBE_QUALITY
         self.format = settings.YOUTUBE_FORMAT
         self._cookies_path = None
+
+    def _get_proxy_url(self) -> Optional[str]:
+        """Get proxy URL string for requests."""
+        if not settings.PROXY_ENABLED:
+            return None
+        if not all([settings.PROXY_HOST, settings.PROXY_PORT, settings.PROXY_USER, settings.PROXY_PASS]):
+            logger.warning("Proxy enabled but missing configuration")
+            return None
+        return f"http://{settings.PROXY_USER}:{settings.PROXY_PASS}@{settings.PROXY_HOST}:{settings.PROXY_PORT}"
+
+    def _download_with_proxy_smart(self, url: str, output_path: Path) -> Optional[Path]:
+        """
+        Smart proxy approach: Use proxy ONLY to extract direct video URL,
+        then download the actual video directly (saves proxy bandwidth).
+        """
+        proxy_url = self._get_proxy_url()
+        if not proxy_url:
+            return None
+
+        try:
+            import yt_dlp
+        except ImportError:
+            logger.warning("yt-dlp not installed")
+            return None
+
+        video_id = self._extract_video_id(url)
+        if not video_id:
+            return None
+
+        try:
+            logger.info("Using residential proxy to extract video URLs...")
+
+            # Step 1: Use proxy to extract video info and direct URLs
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'extract_flat': False,
+                'proxy': proxy_url,
+                'socket_timeout': 30,
+                'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
+            }
+
+            # Add cookies if available
+            cookies_path = self._get_cookies_file()
+            if cookies_path:
+                ydl_opts['cookiefile'] = str(cookies_path)
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+
+            if not info:
+                logger.warning("Could not extract video info via proxy")
+                return None
+
+            title = info.get('title', 'video')
+            logger.info(f"Found video via proxy: {title}")
+
+            # Get the best format URLs
+            formats = info.get('formats', [])
+            if not formats:
+                logger.warning("No formats found")
+                return None
+
+            # Find best video and audio formats
+            video_format = None
+            audio_format = None
+
+            # Filter video formats (prefer mp4, max 1080p)
+            video_formats = [f for f in formats if f.get('vcodec', 'none') != 'none' and f.get('acodec', 'none') == 'none']
+            video_formats = [f for f in video_formats if (f.get('height') or 0) <= 1080]
+            video_formats.sort(key=lambda x: (x.get('height') or 0), reverse=True)
+
+            # Filter audio formats
+            audio_formats = [f for f in formats if f.get('acodec', 'none') != 'none' and f.get('vcodec', 'none') == 'none']
+            audio_formats.sort(key=lambda x: (x.get('abr') or 0), reverse=True)
+
+            # Get best combined format as fallback
+            combined_formats = [f for f in formats if f.get('vcodec', 'none') != 'none' and f.get('acodec', 'none') != 'none']
+            combined_formats = [f for f in combined_formats if (f.get('height') or 0) <= 1080]
+            combined_formats.sort(key=lambda x: (x.get('height') or 0), reverse=True)
+
+            video_url = None
+            audio_url = None
+
+            if video_formats and audio_formats:
+                video_format = video_formats[0]
+                audio_format = audio_formats[0]
+                video_url = video_format.get('url')
+                audio_url = audio_format.get('url')
+                logger.info(f"Got separate streams: {video_format.get('height')}p video + {audio_format.get('abr')}kbps audio")
+            elif combined_formats:
+                video_format = combined_formats[0]
+                video_url = video_format.get('url')
+                logger.info(f"Got combined stream: {video_format.get('height')}p")
+
+            if not video_url:
+                logger.warning("Could not find suitable video URL")
+                return None
+
+            # Step 2: Download directly WITHOUT proxy (saves bandwidth!)
+            logger.info("Downloading video directly (no proxy)...")
+            video_filename = output_path / f"video_{int(time.time())}.mp4"
+            temp_video = output_path / f"temp_video_{int(time.time())}.mp4"
+            temp_audio = output_path / f"temp_audio_{int(time.time())}.m4a"
+
+            # Download video stream directly
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Origin': 'https://www.youtube.com',
+                'Referer': 'https://www.youtube.com/',
+            }
+
+            logger.info("Downloading video stream...")
+            with httpx.stream("GET", video_url, headers=headers, timeout=600.0, follow_redirects=True) as stream:
+                stream.raise_for_status()
+                total = int(stream.headers.get('content-length', 0))
+                downloaded = 0
+                with open(temp_video if audio_url else video_filename, "wb") as f:
+                    for chunk in stream.iter_bytes(chunk_size=65536):
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total:
+                            percent = (downloaded / total) * 100
+                            if downloaded % (5 * 1024 * 1024) < 65536:  # Log every 5MB
+                                logger.info(f"Video: {percent:.1f}% ({downloaded / 1024 / 1024:.1f}MB)")
+
+            # Download and merge audio if separate
+            if audio_url:
+                logger.info("Downloading audio stream...")
+                with httpx.stream("GET", audio_url, headers=headers, timeout=300.0, follow_redirects=True) as stream:
+                    stream.raise_for_status()
+                    with open(temp_audio, "wb") as f:
+                        for chunk in stream.iter_bytes(chunk_size=65536):
+                            f.write(chunk)
+
+                # Merge with FFmpeg
+                logger.info("Merging video and audio...")
+                merge_cmd = [
+                    "ffmpeg", "-i", str(temp_video), "-i", str(temp_audio),
+                    "-c:v", "copy", "-c:a", "aac", "-y", str(video_filename)
+                ]
+                result = subprocess.run(merge_cmd, capture_output=True)
+                if result.returncode != 0:
+                    # Try with re-encoding if copy fails
+                    merge_cmd = [
+                        "ffmpeg", "-i", str(temp_video), "-i", str(temp_audio),
+                        "-c:v", "libx264", "-c:a", "aac", "-y", str(video_filename)
+                    ]
+                    subprocess.run(merge_cmd, check=True, capture_output=True)
+
+                # Cleanup temp files
+                temp_video.unlink(missing_ok=True)
+                temp_audio.unlink(missing_ok=True)
+
+            if video_filename.exists() and video_filename.stat().st_size > 0:
+                size_mb = video_filename.stat().st_size / 1024 / 1024
+                logger.info(f"Proxy+Direct download success: {video_filename} ({size_mb:.1f} MB)")
+                logger.info("Proxy bandwidth used: ~1-5 MB (URL extraction only)")
+                return video_filename
+
+        except Exception as e:
+            logger.warning(f"Proxy smart download failed: {e}")
+            # Cleanup temp files on error
+            for f in output_path.glob("temp_*"):
+                f.unlink(missing_ok=True)
+
+        return None
 
     def _get_cookies_file(self) -> Optional[Path]:
         """Create temp cookies file from environment variable."""
@@ -498,7 +670,7 @@ class DownloadService:
         return None
 
     def _download_sync(self, url: str, output_dir: Optional[Path] = None) -> Path:
-        """Synchronous download. Tries: Piped -> pytubefix -> Invidious -> yt-dlp."""
+        """Synchronous download. Tries: Proxy(smart) -> Piped -> pytubefix -> Invidious -> yt-dlp."""
         try:
             import yt_dlp
         except ImportError:
@@ -509,26 +681,35 @@ class DownloadService:
 
         # Strategy: Try multiple methods in order of reliability
 
-        # Try Piped API first (most reliable for datacenter IPs)
-        logger.info("Method 1/4: Trying Piped API...")
+        # Try residential proxy first (most reliable - if configured)
+        if settings.PROXY_ENABLED:
+            logger.info("Method 1/5: Trying Residential Proxy (smart mode)...")
+            proxy_result = self._download_with_proxy_smart(url, output_path)
+            if proxy_result:
+                return proxy_result
+        else:
+            logger.info("Proxy not enabled, skipping proxy method")
+
+        # Try Piped API (most reliable for datacenter IPs without proxy)
+        logger.info("Method 2/5: Trying Piped API...")
         piped_result = self._download_with_piped(url, output_path)
         if piped_result:
             return piped_result
 
         # Try pytubefix (pure Python, different approach)
-        logger.info("Method 2/4: Trying pytubefix...")
+        logger.info("Method 3/5: Trying pytubefix...")
         pytubefix_result = self._download_with_pytubefix(url, output_path)
         if pytubefix_result:
             return pytubefix_result
 
         # Try Invidious API
-        logger.info("Method 3/4: Trying Invidious API...")
+        logger.info("Method 4/5: Trying Invidious API...")
         invidious_result = self._download_with_invidious(url, output_path)
         if invidious_result:
             return invidious_result
 
         # Try yt-dlp as last resort (usually fails on datacenter IPs)
-        logger.info("Method 4/4: Trying yt-dlp as last resort...")
+        logger.info("Method 5/5: Trying yt-dlp as last resort...")
         try:
             ydl_opts = self._get_ydl_opts(output_path)
 
@@ -562,7 +743,7 @@ class DownloadService:
             return video_path
 
         except Exception as ytdlp_error:
-            raise RuntimeError(f"All 4 download methods failed (Piped, pytubefix, Invidious, yt-dlp). Last error: {ytdlp_error}")
+            raise RuntimeError(f"All download methods failed (Proxy, Piped, pytubefix, Invidious, yt-dlp). Last error: {ytdlp_error}")
 
     async def download(
         self,
