@@ -2,8 +2,8 @@
 Download Service - Single Responsibility: YouTube video download
 
 Downloads videos from YouTube using residential proxy:
-- Uses proxy ONLY to extract video URL (saves bandwidth ~1-5MB)
-- Downloads actual video directly without proxy (saves bandwidth)
+- Extracts video URL via proxy
+- Downloads video via proxy (URLs are IP-locked)
 """
 
 import re
@@ -172,13 +172,13 @@ class DownloadService:
                 logger.warning("Could not find suitable video URL")
                 return None
 
-            # Step 2: Download directly WITHOUT proxy (saves bandwidth!)
-            logger.info("Downloading video directly (no proxy - saving bandwidth)...")
+            # Step 2: Download video THROUGH proxy (URLs are IP-locked)
+            logger.info("Downloading video through proxy (URLs are IP-locked to proxy IP)...")
             video_filename = output_path / f"video_{int(time.time())}.mp4"
             temp_video = output_path / f"temp_video_{int(time.time())}.mp4"
             temp_audio = output_path / f"temp_audio_{int(time.time())}.m4a"
 
-            # Download video stream directly
+            # Download video stream through proxy
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Accept': '*/*',
@@ -187,8 +187,8 @@ class DownloadService:
                 'Referer': 'https://www.youtube.com/',
             }
 
-            logger.info("Downloading video stream...")
-            with httpx.stream("GET", video_url, headers=headers, timeout=600.0, follow_redirects=True) as stream:
+            logger.info("Downloading video stream through proxy...")
+            with httpx.stream("GET", video_url, headers=headers, timeout=600.0, follow_redirects=True, proxy=proxy_url) as stream:
                 stream.raise_for_status()
                 total = int(stream.headers.get('content-length', 0))
                 downloaded = 0
@@ -203,8 +203,8 @@ class DownloadService:
 
             # Download and merge audio if separate
             if audio_url:
-                logger.info("Downloading audio stream...")
-                with httpx.stream("GET", audio_url, headers=headers, timeout=300.0, follow_redirects=True) as stream:
+                logger.info("Downloading audio stream through proxy...")
+                with httpx.stream("GET", audio_url, headers=headers, timeout=300.0, follow_redirects=True, proxy=proxy_url) as stream:
                     stream.raise_for_status()
                     with open(temp_audio, "wb") as f:
                         for chunk in stream.iter_bytes(chunk_size=65536):
@@ -232,7 +232,7 @@ class DownloadService:
             if video_filename.exists() and video_filename.stat().st_size > 0:
                 size_mb = video_filename.stat().st_size / 1024 / 1024
                 logger.info(f"Download success: {video_filename} ({size_mb:.1f} MB)")
-                logger.info("Proxy bandwidth used: ~1-5 MB (URL extraction only)")
+                logger.info(f"Proxy bandwidth used: ~{size_mb:.1f} MB (full video download)")
                 return video_filename
 
         except Exception as e:
