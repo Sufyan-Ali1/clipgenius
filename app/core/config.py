@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
 
+    # CORS Settings (comma-separated list of allowed origins)
+    CORS_ORIGINS: str = "*"  # e.g., "https://your-app.vercel.app,https://another-domain.com"
+
     # Paths
     BASE_DIR: Path = Path(__file__).parent.parent.parent
     STORAGE_DIR: Path = BASE_DIR / "storage"

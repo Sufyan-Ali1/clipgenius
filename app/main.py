@@ -49,9 +49,16 @@ for TikTok and YouTube Shorts.
 )
 
 # Add CORS middleware
+# Parse CORS origins from settings (comma-separated or "*")
+cors_origins = settings.CORS_ORIGINS.strip()
+if cors_origins == "*":
+    allow_origins = ["*"]
+else:
+    allow_origins = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
