@@ -229,6 +229,9 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
         # =====================================================================
         clips_info = []
         for clip, path in zip(final_clips, output_paths):
+            logger.info(f"Building ClipInfo for clip {clip.get('clip_number')}")
+            logger.info(f"  Hashtags from clip: {clip.get('hashtags', 'NOT FOUND')}")
+            logger.info(f"  Description from clip: {clip.get('description', 'NOT FOUND')}")
             clip_info = ClipInfo(
                 clip_number=clip["clip_number"],
                 filename=path.name,

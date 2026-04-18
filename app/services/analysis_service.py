@@ -220,7 +220,13 @@ Return ONLY the JSON. No markdown, no code blocks."""
             )
 
             response = llm.generate(prompt)
+            logger.info(f"Raw LLM response (first 500 chars): {response[:500]}")
             clips = self._parse_llm_response(response)
+            logger.info(f"Parsed {len(clips)} clips from LLM")
+            if clips:
+                logger.info(f"First clip keys: {clips[0].keys() if clips else 'none'}")
+                logger.info(f"First clip hashtags: {clips[0].get('hashtags', 'NOT FOUND')}")
+                logger.info(f"First clip description: {clips[0].get('description', 'NOT FOUND')}")
 
             for clip in clips:
                 try:
