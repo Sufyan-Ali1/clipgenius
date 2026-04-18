@@ -70,7 +70,7 @@ jobs:
         env:
           VITE_API_URL: https://clipgenius.live
         run: |
-          npm ci
+          npm install
           npm run build
 
       - name: Deploy to VM
