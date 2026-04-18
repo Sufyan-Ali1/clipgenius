@@ -26,7 +26,7 @@ MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
 
 
 @router.post(
-    "/",
+    "",
     response_model=JobResponse,
     status_code=201,
     summary="Create processing job",
@@ -196,7 +196,7 @@ async def upload_video(
 
 
 @router.get(
-    "/",
+    "",
     response_model=JobListResponse,
     summary="List all jobs",
     description="Get a list of all processing jobs",

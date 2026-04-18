@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createJob, uploadVideo } from '../lib/api';
 
 function JobForm() {
-  const [inputMode, setInputMode] = useState('upload'); // 'upload' or 'youtube'
+  const [inputMode, setInputMode] = useState('youtube'); // 'youtube' or 'upload'
   const [url, setUrl] = useState('');
   const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
@@ -102,21 +102,19 @@ function JobForm() {
       <div className="input-mode-tabs">
         <button
           type="button"
-          className={`tab ${inputMode === 'upload' ? 'active' : ''}`}
-          onClick={() => setInputMode('upload')}
-          disabled={loading}
-        >
-          Upload Video
-          <span className="tab-badge">Recommended</span>
-        </button>
-        <button
-          type="button"
           className={`tab ${inputMode === 'youtube' ? 'active' : ''}`}
           onClick={() => setInputMode('youtube')}
           disabled={loading}
         >
           YouTube URL
-          <span className="tab-badge warning">May fail</span>
+        </button>
+        <button
+          type="button"
+          className={`tab ${inputMode === 'upload' ? 'active' : ''}`}
+          onClick={() => setInputMode('upload')}
+          disabled={loading}
+        >
+          Upload Video
         </button>
       </div>
 
@@ -169,9 +167,6 @@ function JobForm() {
       {/* YouTube Mode */}
       {inputMode === 'youtube' && (
         <div className="youtube-input">
-          <div className="youtube-warning">
-            ⚠️ YouTube downloads may fail due to bot detection. Upload is more reliable.
-          </div>
           <input
             type="text"
             value={url}
