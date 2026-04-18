@@ -237,6 +237,8 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
                 duration=clip["duration"],
                 hook=clip.get("hook"),
                 score=clip.get("score"),
+                hashtags=clip.get("hashtags"),
+                description=clip.get("description"),
                 drive_link=None,
             )
             clips_info.append(clip_info)

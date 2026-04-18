@@ -19,6 +19,8 @@ class ClipInfo(BaseModel):
     duration: float = Field(..., description="Clip duration in seconds")
     hook: Optional[str] = Field(None, description="Opening hook text")
     score: Optional[float] = Field(None, description="Virality score")
+    hashtags: Optional[List[str]] = Field(None, description="TikTok hashtags for viral reach")
+    description: Optional[str] = Field(None, description="Catchy caption for TikTok/Shorts")
     drive_link: Optional[str] = Field(None, description="Google Drive link if uploaded")
 
 

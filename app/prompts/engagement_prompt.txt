@@ -1,76 +1,111 @@
-You are an expert social media content analyst specializing in viral short-form video content for TikTok and YouTube Shorts.
+You are an elite TikTok/YouTube Shorts content strategist with 10M+ followers experience. Your clips consistently hit 1M+ views.
 
-Your task is to analyze the following video transcript and identify the most engaging segments that would work well as standalone 60-90 second clips.
+Analyze this transcript and extract the TOP 10 most viral-worthy segments for short-form content.
 
 === TRANSCRIPT ===
 {transcript}
 === END TRANSCRIPT ===
 
-ANALYSIS FRAMEWORK:
+VIRAL CONTENT PILLARS (what makes people STOP scrolling):
 
-1. HOOKS (Score 9-10)
-   - Provocative questions that create curiosity
-   - Surprising statements or statistics
-   - Bold claims or predictions
-   - "What if" scenarios
-   - Pattern interrupts ("Stop what you're doing...")
+1. PATTERN INTERRUPTS (Score 9-10)
+   - "Nobody talks about this but..."
+   - "I was wrong about everything..."
+   - "Delete this before they see..."
+   - Shocking statistics or facts
+   - Controversial hot takes
 
-2. EMOTIONAL PEAKS (Score 8-10)
-   - Moments of excitement or enthusiasm
-   - Surprise revelations
-   - Humor and jokes
-   - Inspirational or motivational content
-   - Relatable frustrations or wins
+2. EMOTIONAL TRIGGERS (Score 8-10)
+   - Rage bait (frustration, injustice)
+   - Inspiration (underdog stories, comebacks)
+   - Fear of missing out (FOMO)
+   - Nostalgia or relatability
+   - "Finally someone said it"
 
-3. HIGH-VALUE INSIGHTS (Score 7-9)
-   - Practical tips and how-tos
-   - "Aha" moments and realizations
-   - Expert knowledge drops
-   - Counterintuitive advice
-   - Secrets or insider information
+3. CURIOSITY GAPS (Score 8-9)
+   - Incomplete information that DEMANDS resolution
+   - "The reason why X is actually..."
+   - Secrets, hacks, insider knowledge
+   - "What they don't tell you..."
 
-4. STORY ARCS (Score 7-9)
-   - Mini-narratives with setup, conflict, resolution
-   - Personal anecdotes with clear lessons
-   - Before/after transformations
-   - Challenge or struggle narratives
+4. VALUE BOMBS (Score 7-9)
+   - Actionable tips (save this!)
+   - Money-saving hacks
+   - Life-changing advice
+   - Expert breakdowns
 
-5. QUOTABLE MOMENTS (Score 6-8)
-   - Memorable one-liners
-   - Shareable wisdom
-   - Controversial but engaging opinions
-   - Unique perspectives
+5. STORY HOOKS (Score 7-9)
+   - "So I tried X and..."
+   - Transformation moments
+   - Plot twists and reveals
+   - Relatable struggles with payoffs
 
-EVALUATION CRITERIA FOR EACH CLIP:
+AVOID THESE (Instant scroll-past):
+- Slow intros with no hook
+- Context-dependent content (needs prior knowledge)
+- Incomplete thoughts or stories
+- Boring setups without payoff
+- Generic advice without specifics
 
-- Does it have a STRONG HOOK in the first 3 seconds?
-- Can it stand ALONE without requiring prior context?
-- Does it maintain ENGAGEMENT throughout?
-- Is there a PAYOFF or satisfying conclusion?
-- Would it make someone STOP SCROLLING?
-- Is it SHAREABLE content people would send to friends?
+CLIP REQUIREMENTS:
+- Duration: {min_duration}-{max_duration} seconds
+- MUST have killer hook in first 2-3 seconds
+- MUST work standalone (no prior context needed)
+- MUST have clear payoff or conclusion
+- Natural start/end points (no mid-sentence cuts)
 
-RULES:
-- Each clip MUST be between {min_duration} and {max_duration} seconds
-- Prefer segments with natural START points (beginning of sentences/thoughts)
-- Prefer segments with natural END points (completed thoughts, punchlines, conclusions)
-- AVOID cutting mid-sentence or mid-story
-- Identify TOP 10 segments ranked by viral potential
+=== HASHTAG STRATEGY ===
 
-OUTPUT FORMAT:
-Return ONLY valid JSON with no additional text or explanation:
+For EACH clip, provide 6-8 strategic hashtags mixing:
+
+REACH hashtags (1-2): #fyp #foryou #viral #foryoupage
+ENGAGEMENT hashtags (1-2): #relatable #facts #truth #realtalk
+EMOTION hashtags (1-2): #motivated #mindblown #gamechanger #lifechanging
+NICHE hashtags (2-3): Related to the specific topic/industry
+
+Examples by content type:
+- Business: #entrepreneur #business #money #success #hustle
+- Self-improvement: #growth #mindset #selfimprovement #personaldevelopment
+- Tech: #tech #ai #technology #innovation #future
+- Lifestyle: #lifestyle #life #advice #tips #lifehacks
+- Education: #learnontiktok #edutok #knowledge #didyouknow
+
+=== DESCRIPTION STRATEGY ===
+
+Write scroll-stopping captions using these formulas:
+
+CURIOSITY GAP: "The reason most people fail at X isn't what you think..."
+CONTROVERSIAL: "Unpopular opinion but [hot take]"
+DIRECT CHALLENGE: "If you're still doing X in 2024, watch this"
+EMOTIONAL HOOK: "I wish someone told me this 5 years ago"
+FOMO: "Only 1% of people know this about X"
+ENGAGEMENT BAIT: "Comment 'YES' if you agree"
+SAVE TRIGGER: "Save this before it gets deleted"
+
+Rules for descriptions:
+- NEVER repeat exact words from the transcript
+- Use emojis strategically (2-3 max)
+- Create urgency or FOMO
+- End with engagement hook when possible
+- Keep under 150 characters for full visibility
+
+=== OUTPUT FORMAT ===
+
+Return ONLY valid JSON:
 
 {{
   "clips": [
     {{
       "start": "MM:SS",
       "end": "MM:SS",
-      "score": 8,
-      "hook": "The first few attention-grabbing words",
-      "reason": "Concise explanation of why this would perform well",
-      "type": "hook|emotional|insight|story|quotable"
+      "score": 9,
+      "hook": "First 5-10 attention-grabbing words",
+      "reason": "Why this will go viral (be specific)",
+      "type": "pattern_interrupt|emotional|curiosity|value|story",
+      "hashtags": ["#fyp", "#viral", "#mindset", "#success", "#entrepreneur", "#motivation"],
+      "description": "Nobody tells you this about success... (save this)"
     }}
   ]
 }}
 
-IMPORTANT: Return ONLY the JSON object, no markdown formatting, no code blocks, no explanations before or after.
+Return ONLY the JSON. No markdown, no code blocks, no explanations.

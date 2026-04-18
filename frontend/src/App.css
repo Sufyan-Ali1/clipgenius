@@ -699,6 +699,91 @@ body {
   border-radius: 8px;
 }
 
+/* Clip Description */
+.clip-description {
+  margin-bottom: 1rem;
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.description-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.description-header .label {
+  color: #71717a;
+  font-size: 0.8rem;
+}
+
+.description-text {
+  color: #e4e4e7;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Clip Hashtags */
+.clip-hashtags {
+  margin-bottom: 1rem;
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.hashtags-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.hashtags-header .label {
+  color: #71717a;
+  font-size: 0.8rem;
+}
+
+.hashtags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hashtag {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Copy Button */
+.copy-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid #52525b;
+  border-radius: 4px;
+  background: transparent;
+  color: #a1a1aa;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-btn:hover {
+  border-color: #a855f7;
+  color: #a855f7;
+}
+
+.copy-btn.copied {
+  border-color: #22c55e;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
 .clip-filename {
   font-family: monospace;
   font-size: 0.75rem;
@@ -941,6 +1026,28 @@ body {
   .clip-hook {
     font-size: 0.85rem;
     padding: 0.5rem;
+  }
+
+  .clip-description {
+    padding: 0.5rem;
+  }
+
+  .description-text {
+    font-size: 0.85rem;
+  }
+
+  .clip-hashtags {
+    padding: 0.5rem;
+  }
+
+  .hashtag {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .copy-btn {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
   }
 
   .clip-filename {
