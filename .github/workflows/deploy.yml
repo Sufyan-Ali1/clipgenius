@@ -1,0 +1,84 @@
+name: Deploy to Azure VM
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # Check which files changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'app/**'
+              - 'requirements.txt'
+              - 'Dockerfile'
+              - 'run.py'
+            frontend:
+              - 'frontend/**'
+
+  # Deploy backend only if backend files changed
+  deploy-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Backend
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd ~/clipgenius
+            git pull origin main
+            docker build -t backend-api .
+            docker stop backend || true
+            docker rm backend || true
+            docker run -d \
+              --name backend \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              --env-file .env \
+              backend-api
+            echo "Backend deployed!"
+
+  # Deploy frontend only if frontend files changed
+  deploy-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        working-directory: ./frontend
+        env:
+          VITE_API_URL: https://clipgenius.live
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          source: "frontend/dist/*"
+          target: "/var/www/clipgenius"
+          strip_components: 2
