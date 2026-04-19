@@ -68,25 +68,29 @@ VIRAL CONTENT PILLARS:
 
 AVOID: Slow intros, context-dependent content, incomplete thoughts, boring setups
 
-=== CRITICAL: COMPLETE POINTS/THOUGHTS (NOT JUST SENTENCES) ===
+=== MOST CRITICAL RULE: COMPLETE SELF-CONTAINED MINI-STORIES ===
 
-Every clip MUST contain a COMPLETE POINT or IDEA with:
-- BEGINNING: The speaker introduces the topic/idea
-- MIDDLE: The speaker explains or develops it
-- END: The speaker reaches a conclusion or payoff
+Every clip MUST be a COMPLETE MINI-STORY with:
+1. SETUP: What is the speaker talking about?
+2. DEVELOPMENT: The explanation, story, or argument
+3. PAYOFF: The conclusion, lesson, or takeaway
 
-The viewer must understand the FULL MESSAGE without needing more context.
+Ask: "If someone watches ONLY this clip, will they understand the FULL point?"
+If NO - the clip is INCOMPLETE. Extend it or skip it!
 
-BAD: "So the third reason is..." (missing context) or ends before delivering the promised value
-GOOD: Complete story with setup, explanation, and conclusion/lesson
+COMMON MISTAKES TO AVOID:
+- Clip about "3 reasons" but only includes reason #2 and #3 (WRONG - include ALL or focus on ONE)
+- Speaker says "like I mentioned earlier..." (WRONG - start earlier to include original mention)
+- Speaker explains problem but clip ends before solution (WRONG - include solution)
+- Clip has great hook but doesn't deliver the promise (WRONG - extend until payoff)
+- Clip starts with "So that's why..." without context (WRONG - include what led to conclusion)
 
-CHECKLIST FOR EVERY CLIP:
-- Does it have a clear BEGINNING that sets up the topic?
-- Does it have a MIDDLE that develops the idea?
-- Does it have an END with conclusion, lesson, or payoff?
-- Would a viewer feel SATISFIED, not confused?
+VALIDATION: Before selecting, ask:
+1. Does this tell a COMPLETE story?
+2. Would viewer feel SATISFIED after watching?
+3. Is there ANY missing context?
 
-If a segment is amazing but incomplete, EXTEND the timestamps to capture the full point!
+A 90-second COMPLETE clip is BETTER than a 45-second INCOMPLETE clip!
 
 CLIP REQUIREMENTS:
 - Duration: {min_duration}-{max_duration} seconds (AIM FOR 60-90 SECONDS)

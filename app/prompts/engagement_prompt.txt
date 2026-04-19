@@ -48,38 +48,77 @@ AVOID THESE (Instant scroll-past):
 - Generic advice without specifics
 - Half sentences at start or end
 
-=== CRITICAL: COMPLETE POINTS/THOUGHTS (NOT JUST SENTENCES) ===
+=== MOST CRITICAL RULE: COMPLETE SELF-CONTAINED MINI-STORIES ===
 
-THIS IS THE MOST IMPORTANT RULE - Every clip MUST contain a COMPLETE POINT or IDEA:
+⚠️ THIS IS THE #1 PRIORITY - MORE IMPORTANT THAN ANYTHING ELSE ⚠️
 
-A COMPLETE POINT means:
-- The speaker introduces a topic/idea
-- The speaker explains or develops it
-- The speaker reaches a conclusion or payoff
-- The viewer can understand the FULL MESSAGE without needing more context
+Every clip MUST be a COMPLETE MINI-STORY that makes 100% sense on its own.
 
-THIS IS NOT JUST ABOUT SENTENCES - It's about COMPLETE IDEAS!
+Think of each clip as a SHORT FILM with:
+1. SETUP (Beginning): What is the speaker talking about? What's the context?
+2. DEVELOPMENT (Middle): The explanation, story, argument, or journey
+3. PAYOFF (End): The conclusion, lesson, punchline, or takeaway
 
-BAD EXAMPLE (DO NOT DO THIS):
-- Clip starts: "So the third reason is..." (missing the first two reasons - incomplete context)
-- Clip ends: "And that's why you need to..." (cuts off before explaining what to do)
-- Clip explains a problem but cuts off before the solution
-- Clip has a great hook but ends without delivering the promised value
+=== WHAT "COMPLETE" REALLY MEANS ===
 
-GOOD EXAMPLE (DO THIS):
-- Clip starts: "Let me tell you the biggest mistake I made in business."
-- Clip explains the mistake, what happened, and the lesson learned
-- Clip ends: "And that's how I turned my failure into my biggest success."
-- The viewer gets the COMPLETE story with beginning, middle, and end
+Ask yourself: "If someone watches ONLY this clip, will they:
+- Understand what the speaker is talking about?
+- Get the FULL point the speaker is making?
+- Feel satisfied, not confused?
+- NOT wonder 'wait, what happened before?' or 'what comes next?'"
 
-CHECKLIST FOR EVERY CLIP:
-✓ Does the clip have a clear BEGINNING that sets up the topic?
-✓ Does the clip have a MIDDLE that develops the idea?
-✓ Does the clip have an END with a conclusion, lesson, or payoff?
-✓ Would a viewer feel SATISFIED, not confused or wanting more context?
-✓ Does the clip make sense as a STANDALONE piece of content?
+If the answer to ANY of these is NO, the clip is INCOMPLETE - extend it or skip it!
 
-If a segment is amazing but incomplete, EXTEND the timestamps to capture the full point!
+=== COMMON MISTAKES TO AVOID ===
+
+❌ WRONG - Clip about "3 reasons" but only includes reason #2 and #3
+   → FIX: Include ALL reasons, or just focus on ONE complete reason
+
+❌ WRONG - Speaker says "like I mentioned earlier..." (references something not in clip)
+   → FIX: Start earlier to include the original mention
+
+❌ WRONG - Speaker explains a problem but clip ends before the solution
+   → FIX: Extend to include the solution
+
+❌ WRONG - Speaker says "let me give you an example" then clip ends mid-example
+   → FIX: Include the COMPLETE example with the lesson
+
+❌ WRONG - Clip starts with "So that's why..." (conclusion without context)
+   → FIX: Start earlier to include what led to this conclusion
+
+❌ WRONG - Speaker is building up to a big reveal but clip cuts before reveal
+   → FIX: MUST include the payoff/reveal
+
+❌ WRONG - Clip has great hook but doesn't deliver what it promised
+   → FIX: Extend until the promise is fulfilled
+
+=== VALIDATION PROCESS FOR EACH CLIP ===
+
+Before selecting a clip, mentally verify:
+
+Step 1: Read the clip content from start to end
+Step 2: Ask "Does this tell a COMPLETE story?"
+Step 3: Ask "Would a viewer feel SATISFIED after watching?"
+Step 4: Ask "Is there ANY missing context that would confuse viewers?"
+Step 5: If ANY doubt, EXTEND the timestamps until complete
+
+REMEMBER: A 90-second complete clip is BETTER than a 45-second incomplete clip!
+
+=== EXAMPLES OF COMPLETE CLIPS ===
+
+GOOD CLIP STRUCTURE:
+"Here's what nobody tells you about starting a business. [SETUP]
+When I started, I thought I needed the perfect product. I spent 2 years perfecting it. [DEVELOPMENT]
+But here's the truth - I should have launched in month one and improved based on feedback. [DEVELOPMENT]
+That 2-year delay cost me everything. Launch ugly, improve fast. That's the real secret." [PAYOFF]
+
+Another example:
+"I used to wake up at 5am every day thinking that's what successful people do. [SETUP]
+For 6 months, I was exhausted, my work suffered, and I was miserable. [DEVELOPMENT]
+Then I realized - it's not about waking up early, it's about protecting your peak hours. [DEVELOPMENT]
+Now I wake up at 8am and I'm 10x more productive because I work WITH my body, not against it." [PAYOFF]
+
+Both examples have: Clear setup → Development/Story → Satisfying conclusion
 
 CLIP REQUIREMENTS:
 - Duration: {min_duration}-{max_duration} seconds (AIM FOR 60-90 SECONDS - longer clips perform better!)
