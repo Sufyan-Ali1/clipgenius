@@ -49,8 +49,8 @@ class Settings(BaseSettings):
 
     # Clip Settings
     NUM_CLIPS: int = 5
-    MIN_CLIP_DURATION: int = 30
-    MAX_CLIP_DURATION: int = 90
+    MIN_CLIP_DURATION: int = 60
+    MAX_CLIP_DURATION: int = 100
     MIN_VIRALITY_SCORE: float = 6.0
 
     # Video Settings

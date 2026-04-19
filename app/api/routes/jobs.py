@@ -21,21 +21,6 @@ from app.models.responses import JobResponse, JobListResponse, JobResults, Error
 from app.services.job_service import JobService, get_job_service
 from app.workers.pipeline_worker import run_pipeline
 
-# Estimated durations per step (in seconds) for time estimation
-STEP_ESTIMATES = {
-    "pending": 0,
-    "uploading_video": 30,  # Receiving uploaded video
-    "downloading": 45,
-    "transcribing": 90,
-    "analyzing": 45,
-    "selecting": 10,
-    "cutting": 60,
-    "subtitling": 30,
-    "uploading": 20,
-    "completed": 0,
-    "failed": 0,
-}
-
 logger = get_logger("jobs_api")
 
 router = APIRouter()
@@ -477,20 +462,15 @@ async def stream_job_progress(
             if job.step_started_at:
                 elapsed = int((datetime.now() - job.step_started_at).total_seconds())
 
-            # Calculate remaining time for current step
-            step_estimate = STEP_ESTIMATES.get(job.status.value, 60)
-            step_remaining = max(0, step_estimate - elapsed)
+            # Calculate remaining time based on actual progress (not hardcoded estimates)
+            step_remaining = 0
+            if job.step_progress and job.step_progress > 0.05 and elapsed > 2:
+                # Estimate remaining based on current progress rate
+                estimated_total = elapsed / job.step_progress
+                step_remaining = max(0, int(estimated_total - elapsed))
 
-            # Calculate total remaining time (current step + future steps)
-            current_idx = step_order.index(job.status.value) if job.status.value in step_order else -1
-            future_steps = step_order[current_idx + 1:] if current_idx >= 0 else []
-            future_time = sum(STEP_ESTIMATES.get(s, 0) for s in future_steps)
-
-            # Don't count subtitling if not enabled
-            if not job.add_subtitles and "subtitling" in future_steps:
-                future_time -= STEP_ESTIMATES.get("subtitling", 0)
-
-            total_remaining = step_remaining + future_time
+            # We don't estimate future steps anymore - just show current step timing
+            total_remaining = step_remaining
 
             # Build event data
             event_data = {

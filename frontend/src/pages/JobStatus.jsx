@@ -18,8 +18,6 @@ function JobStatus() {
   const [stepProgress, setStepProgress] = useState(0);
   const [stepMessage, setStepMessage] = useState(null);
   const [elapsed, setElapsed] = useState(0);
-  const [stepRemaining, setStepRemaining] = useState(0);
-  const [totalRemaining, setTotalRemaining] = useState(0);
   const [stepDurations, setStepDurations] = useState({});
 
   // Upload state
@@ -139,8 +137,6 @@ function JobStatus() {
           setStepProgress(data.step_progress || 0);
           setStepMessage(data.step_message);
           setElapsed(data.elapsed || 0);
-          setStepRemaining(data.step_remaining || 0);
-          setTotalRemaining(data.total_remaining || 0);
           setStepDurations(data.step_durations || {});
 
           // Handle completion
@@ -251,8 +247,6 @@ function JobStatus() {
           stepProgress={stepProgress}
           stepMessage={stepMessage}
           elapsed={elapsed}
-          stepRemaining={stepRemaining}
-          totalRemaining={totalRemaining}
           stepDurations={stepDurations}
         />
 

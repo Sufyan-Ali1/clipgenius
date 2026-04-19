@@ -48,31 +48,47 @@ AVOID THESE (Instant scroll-past):
 - Generic advice without specifics
 - Half sentences at start or end
 
-=== CRITICAL: COMPLETE SENTENCES ONLY ===
+=== CRITICAL: COMPLETE POINTS/THOUGHTS (NOT JUST SENTENCES) ===
 
-THIS IS MANDATORY - Every clip MUST:
-- START at the BEGINNING of a sentence (not mid-sentence)
-- END at the END of a sentence (not mid-sentence)
-- Contain COMPLETE thoughts that make sense on their own
-- Be fully understandable without any missing context
+THIS IS THE MOST IMPORTANT RULE - Every clip MUST contain a COMPLETE POINT or IDEA:
+
+A COMPLETE POINT means:
+- The speaker introduces a topic/idea
+- The speaker explains or develops it
+- The speaker reaches a conclusion or payoff
+- The viewer can understand the FULL MESSAGE without needing more context
+
+THIS IS NOT JUST ABOUT SENTENCES - It's about COMPLETE IDEAS!
 
 BAD EXAMPLE (DO NOT DO THIS):
-- Start: "...and that's why you need to focus on..."  (starts mid-sentence)
-- End: "...which is exactly what I mean when I say..."  (ends mid-sentence)
+- Clip starts: "So the third reason is..." (missing the first two reasons - incomplete context)
+- Clip ends: "And that's why you need to..." (cuts off before explaining what to do)
+- Clip explains a problem but cuts off before the solution
+- Clip has a great hook but ends without delivering the promised value
 
 GOOD EXAMPLE (DO THIS):
-- Start: "Here's the thing nobody tells you."  (complete sentence start)
-- End: "And that changed everything for me."  (complete sentence end)
+- Clip starts: "Let me tell you the biggest mistake I made in business."
+- Clip explains the mistake, what happened, and the lesson learned
+- Clip ends: "And that's how I turned my failure into my biggest success."
+- The viewer gets the COMPLETE story with beginning, middle, and end
 
-If a segment has a great hook but starts/ends mid-sentence, ADJUST the timestamps to include the full sentences!
+CHECKLIST FOR EVERY CLIP:
+✓ Does the clip have a clear BEGINNING that sets up the topic?
+✓ Does the clip have a MIDDLE that develops the idea?
+✓ Does the clip have an END with a conclusion, lesson, or payoff?
+✓ Would a viewer feel SATISFIED, not confused or wanting more context?
+✓ Does the clip make sense as a STANDALONE piece of content?
+
+If a segment is amazing but incomplete, EXTEND the timestamps to capture the full point!
 
 CLIP REQUIREMENTS:
-- Duration: {min_duration}-{max_duration} seconds
+- Duration: {min_duration}-{max_duration} seconds (AIM FOR 60-90 SECONDS - longer clips perform better!)
 - MUST have killer hook in first 2-3 seconds
 - MUST work standalone (no prior context needed)
-- MUST have clear payoff or conclusion
-- MUST start and end with COMPLETE sentences (no half sentences!)
-- Every word must be understandable - no cut-off speech
+- MUST contain a COMPLETE point/idea with beginning, middle, and end
+- MUST have clear payoff, conclusion, or takeaway
+- MUST start and end with complete sentences (no cut-off words!)
+- The viewer should feel they got VALUE, not that something was missing
 
 === HASHTAG STRATEGY ===
 

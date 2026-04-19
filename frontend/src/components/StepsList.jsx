@@ -1,16 +1,5 @@
 import { useEffect, useState } from 'react';
 
-// Estimated durations per step (in seconds)
-const STEP_ESTIMATES = {
-  uploading_video: 30,
-  downloading: 45,
-  transcribing: 90,
-  analyzing: 45,
-  selecting: 10,
-  cutting: 60,
-  subtitling: 30,
-};
-
 // Step descriptions shown during processing
 const STEP_DESCRIPTIONS = {
   uploading_video: 'Receiving your video file...',
@@ -35,8 +24,6 @@ function StepsList({
   stepProgress = 0,
   stepMessage = null,
   elapsed = 0,
-  stepRemaining = 0,
-  totalRemaining = 0,
   stepDurations = {},
 }) {
   // Local elapsed timer for smoother updates
@@ -106,6 +93,9 @@ function StepsList({
     }
   };
 
+  // Steps where we can calculate remaining time (have measurable progress)
+  const CALCULABLE_STEPS = ['uploading_video', 'downloading', 'cutting', 'subtitling'];
+
   // Get time info for a step
   const getStepTimeInfo = (stepKey, status) => {
     if (status === 'completed') {
@@ -117,34 +107,32 @@ function StepsList({
     }
 
     if (status === 'current') {
-      const estimate = STEP_ESTIMATES[stepKey] || 60;
-      const remaining = Math.max(0, estimate - localElapsed);
+      // Only calculate remaining for steps with measurable progress
+      let remainingText = null;
+      const canCalculate = CALCULABLE_STEPS.includes(stepKey);
+
+      if (canCalculate && stepProgress > 0.05 && localElapsed > 2) {
+        // Estimate remaining based on current progress rate
+        const estimatedTotal = localElapsed / stepProgress;
+        const remaining = Math.max(0, estimatedTotal - localElapsed);
+        if (remaining > 0) {
+          remainingText = `~${formatTime(remaining)} remaining`;
+        }
+      }
+
       return {
-        text: `${formatTime(localElapsed)} elapsed`,
-        remaining: `~${formatTime(remaining)} remaining`,
+        text: `${formatTime(localElapsed)}`,
+        remaining: remainingText,
         type: 'current'
       };
     }
 
-    if (status === 'pending') {
-      const estimate = STEP_ESTIMATES[stepKey];
-      if (estimate) {
-        return { text: `~${formatTime(estimate)} estimated`, type: 'pending' };
-      }
-    }
-
+    // For pending steps, don't show estimated time
     return { text: '', type: status };
   };
 
   return (
     <div className="steps-timeline">
-      {/* Total remaining time header */}
-      {totalRemaining > 0 && currentStatus !== 'completed' && currentStatus !== 'failed' && (
-        <div className="steps-header">
-          <span className="steps-remaining">~{formatTime(totalRemaining)} remaining</span>
-        </div>
-      )}
-
       <div className="steps-vertical">
         {steps.map((step, index) => {
           const status = getStepStatus(step.key);

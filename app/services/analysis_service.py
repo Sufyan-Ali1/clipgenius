@@ -66,20 +66,35 @@ VIRAL CONTENT PILLARS:
 4. VALUE BOMBS (Score 7-9) - Actionable tips, money hacks, expert breakdowns
 5. STORY HOOKS (Score 7-9) - Transformations, plot twists, relatable struggles
 
-AVOID: Slow intros, context-dependent content, incomplete thoughts, boring setups, half sentences
+AVOID: Slow intros, context-dependent content, incomplete thoughts, boring setups
 
-CRITICAL - COMPLETE SENTENCES ONLY:
-- START at the BEGINNING of a sentence (never mid-sentence)
-- END at the END of a sentence (never mid-sentence)
-- Must be fully understandable with no missing context
-- If great hook starts mid-sentence, adjust timestamps to include full sentence
+=== CRITICAL: COMPLETE POINTS/THOUGHTS (NOT JUST SENTENCES) ===
+
+Every clip MUST contain a COMPLETE POINT or IDEA with:
+- BEGINNING: The speaker introduces the topic/idea
+- MIDDLE: The speaker explains or develops it
+- END: The speaker reaches a conclusion or payoff
+
+The viewer must understand the FULL MESSAGE without needing more context.
+
+BAD: "So the third reason is..." (missing context) or ends before delivering the promised value
+GOOD: Complete story with setup, explanation, and conclusion/lesson
+
+CHECKLIST FOR EVERY CLIP:
+- Does it have a clear BEGINNING that sets up the topic?
+- Does it have a MIDDLE that develops the idea?
+- Does it have an END with conclusion, lesson, or payoff?
+- Would a viewer feel SATISFIED, not confused?
+
+If a segment is amazing but incomplete, EXTEND the timestamps to capture the full point!
 
 CLIP REQUIREMENTS:
-- Duration: {min_duration}-{max_duration} seconds
+- Duration: {min_duration}-{max_duration} seconds (AIM FOR 60-90 SECONDS)
 - Killer hook in first 2-3 seconds
 - Works standalone (no prior context needed)
-- Clear payoff or conclusion
-- MUST start and end with COMPLETE sentences only
+- Contains COMPLETE point with beginning, middle, and end
+- Clear payoff, conclusion, or takeaway
+- Start and end with complete sentences (no cut-off words)
 
 HASHTAG STRATEGY (6-8 per clip):
 - REACH: #fyp #foryou #viral
@@ -92,7 +107,6 @@ DESCRIPTION STRATEGY (scroll-stopping captions):
 - NEVER repeat exact transcript words
 - Use 2-3 emojis max
 - Under 150 characters
-- Examples: "Nobody tells you this...", "Comment YES if you agree"
 
 OUTPUT FORMAT (JSON only):
 {{
