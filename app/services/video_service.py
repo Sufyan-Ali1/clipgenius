@@ -29,7 +29,7 @@ class VideoService:
         self.vertical_method = settings.VERTICAL_METHOD
         self.vertical_width = settings.VERTICAL_WIDTH
         self.vertical_height = settings.VERTICAL_HEIGHT
-        self.video_crf = 18  # High quality setting (visually lossless)
+        self.video_crf = 17  # Higher quality (lower = better, 17-18 is near lossless)
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._check_ffmpeg()
@@ -69,15 +69,24 @@ class VideoService:
         out_w = self.vertical_width
         out_h = self.vertical_height
 
-        if self.vertical_method == "blur":
+        if self.vertical_method in ["blur", "blur_padding"]:
+            # Blur padding: Full video visible with blurred background filling sides
+            # This keeps ALL content visible - no cropping!
             filter_complex = (
                 f"[0:v]scale={out_w}:{out_h}:force_original_aspect_ratio=increase,"
-                f"crop={out_w}:{out_h},boxblur=20:5[bg];"
+                f"crop={out_w}:{out_h},boxblur=25:5[bg];"
                 f"[0:v]scale=w='min({out_w},iw*{out_h}/ih)':h='min({out_h},ih*{out_w}/iw)':"
                 f"force_original_aspect_ratio=decrease[fg];"
                 f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
             )
+        elif self.vertical_method == "black_bars":
+            # Letterbox: Video centered with black bars
+            filter_complex = (
+                f"scale={out_w}:{out_h}:force_original_aspect_ratio=decrease,"
+                f"pad={out_w}:{out_h}:(ow-iw)/2:(oh-ih)/2:black"
+            )
         else:
+            # Crop: Center crop (loses content on sides)
             filter_complex = (
                 f"scale={out_w}:{out_h}:force_original_aspect_ratio=increase,"
                 f"crop={out_w}:{out_h}"
@@ -112,16 +121,24 @@ class VideoService:
                 video_info["height"]
             )
             cmd.extend(["-filter_complex", filter_str])
-
-        cmd.extend([
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", str(self.video_crf),
-            "-c:a", "aac",
-            "-b:a", "128k",
-            "-movflags", "+faststart",
-            str(output_path)
-        ])
+            # Re-encode needed for filters
+            cmd.extend([
+                "-c:v", "libx264",
+                "-preset", "slow",  # Better quality (slower encoding)
+                "-crf", str(self.video_crf),
+                "-c:a", "aac",
+                "-b:a", "192k",  # Higher audio quality
+                "-movflags", "+faststart",
+                str(output_path)
+            ])
+        else:
+            # No vertical conversion - stream copy for original quality
+            cmd.extend([
+                "-c:v", "copy",
+                "-c:a", "copy",
+                "-movflags", "+faststart",
+                str(output_path)
+            ])
 
         try:
             subprocess.run(cmd, check=True, capture_output=True)
