@@ -46,13 +46,33 @@ AVOID THESE (Instant scroll-past):
 - Incomplete thoughts or stories
 - Boring setups without payoff
 - Generic advice without specifics
+- Half sentences at start or end
+
+=== CRITICAL: COMPLETE SENTENCES ONLY ===
+
+THIS IS MANDATORY - Every clip MUST:
+- START at the BEGINNING of a sentence (not mid-sentence)
+- END at the END of a sentence (not mid-sentence)
+- Contain COMPLETE thoughts that make sense on their own
+- Be fully understandable without any missing context
+
+BAD EXAMPLE (DO NOT DO THIS):
+- Start: "...and that's why you need to focus on..."  (starts mid-sentence)
+- End: "...which is exactly what I mean when I say..."  (ends mid-sentence)
+
+GOOD EXAMPLE (DO THIS):
+- Start: "Here's the thing nobody tells you."  (complete sentence start)
+- End: "And that changed everything for me."  (complete sentence end)
+
+If a segment has a great hook but starts/ends mid-sentence, ADJUST the timestamps to include the full sentences!
 
 CLIP REQUIREMENTS:
 - Duration: {min_duration}-{max_duration} seconds
 - MUST have killer hook in first 2-3 seconds
 - MUST work standalone (no prior context needed)
 - MUST have clear payoff or conclusion
-- Natural start/end points (no mid-sentence cuts)
+- MUST start and end with COMPLETE sentences (no half sentences!)
+- Every word must be understandable - no cut-off speech
 
 === HASHTAG STRATEGY ===
 

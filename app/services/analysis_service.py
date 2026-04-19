@@ -66,14 +66,20 @@ VIRAL CONTENT PILLARS:
 4. VALUE BOMBS (Score 7-9) - Actionable tips, money hacks, expert breakdowns
 5. STORY HOOKS (Score 7-9) - Transformations, plot twists, relatable struggles
 
-AVOID: Slow intros, context-dependent content, incomplete thoughts, boring setups
+AVOID: Slow intros, context-dependent content, incomplete thoughts, boring setups, half sentences
+
+CRITICAL - COMPLETE SENTENCES ONLY:
+- START at the BEGINNING of a sentence (never mid-sentence)
+- END at the END of a sentence (never mid-sentence)
+- Must be fully understandable with no missing context
+- If great hook starts mid-sentence, adjust timestamps to include full sentence
 
 CLIP REQUIREMENTS:
 - Duration: {min_duration}-{max_duration} seconds
 - Killer hook in first 2-3 seconds
 - Works standalone (no prior context needed)
 - Clear payoff or conclusion
-- Natural start/end points
+- MUST start and end with COMPLETE sentences only
 
 HASHTAG STRATEGY (6-8 per clip):
 - REACH: #fyp #foryou #viral
