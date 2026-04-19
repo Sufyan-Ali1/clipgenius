@@ -1103,6 +1103,385 @@ body {
   }
 }
 
+/* ==========================================
+   VERTICAL STEPS TIMELINE (SSE)
+   ========================================== */
+
+.steps-timeline {
+  margin-top: 1.5rem;
+}
+
+.steps-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.steps-remaining {
+  font-size: 0.9rem;
+  color: #a855f7;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  background: rgba(168, 85, 247, 0.1);
+  border-radius: 20px;
+}
+
+.steps-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Step Row */
+.step-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 0.75rem 0;
+  position: relative;
+}
+
+/* Connector Line */
+.step-line-container {
+  position: absolute;
+  left: 17px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  z-index: 0;
+}
+
+.step-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: #3f3f46;
+}
+
+.step-line-first {
+  top: 50%;
+}
+
+.step-line-last {
+  bottom: 50%;
+}
+
+.step-line-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #3f3f46;
+  transition: background 0.3s;
+}
+
+.step-line-fill-completed {
+  background: #22c55e;
+}
+
+.step-line-fill-current {
+  background: linear-gradient(to bottom, #22c55e 0%, #a855f7 100%);
+}
+
+/* Step Indicator (Vertical) */
+.step-indicator-vertical {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  z-index: 1;
+  transition: all 0.3s ease;
+  margin-right: 1rem;
+}
+
+.step-pending .step-indicator-vertical {
+  background: #3f3f46;
+  color: #71717a;
+}
+
+.step-current .step-indicator-vertical {
+  background: #a855f7;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.2);
+}
+
+.step-completed .step-indicator-vertical {
+  background: #22c55e;
+  color: #fff;
+}
+
+.step-failed .step-indicator-vertical {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* Pulsing Animation for Current Step */
+.step-indicator-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(168, 85, 247, 0.3);
+  }
+}
+
+/* Icons */
+.step-icon-check {
+  width: 18px;
+  height: 18px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.step-icon-x {
+  width: 16px;
+  height: 16px;
+  stroke-linecap: round;
+}
+
+/* Spinner Ring for Current Step */
+.step-spinner-ring {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.step-number-vertical {
+  font-size: 0.85rem;
+}
+
+/* Step Content */
+.step-content-vertical {
+  flex: 1;
+  min-width: 0;
+}
+
+.step-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.step-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #e4e4e7;
+}
+
+.step-pending .step-title {
+  color: #71717a;
+}
+
+.step-current .step-title {
+  color: #e4e4e7;
+}
+
+.step-completed .step-title {
+  color: #a1a1aa;
+}
+
+.step-failed .step-title {
+  color: #fca5a5;
+}
+
+/* Step Time Display */
+.step-time {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.step-time-completed {
+  color: #22c55e;
+}
+
+.step-time-current {
+  color: #a855f7;
+  font-weight: 500;
+}
+
+.step-time-pending {
+  color: #52525b;
+}
+
+/* Progress Bar Inside Step */
+.step-progress-container {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.step-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #3f3f46;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.step-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #a855f7, #ec4899);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.step-time-remaining {
+  font-size: 0.75rem;
+  color: #a855f7;
+  white-space: nowrap;
+}
+
+/* Step Description */
+.step-description {
+  font-size: 0.8rem;
+  color: #71717a;
+  margin-top: 0.25rem;
+  min-height: 1.2em;
+}
+
+.step-current .step-description {
+  color: #a1a1aa;
+}
+
+/* Connection Status Indicator */
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 1rem;
+}
+
+.connection-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.connection-status.connected {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.connection-status.connected::before {
+  background: #22c55e;
+  animation: blink 2s ease-in-out infinite;
+}
+
+.connection-status.polling {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.connection-status.polling::before {
+  background: #f59e0b;
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Responsive - Vertical Timeline */
+@media (max-width: 600px) {
+  .steps-header {
+    justify-content: center;
+  }
+
+  .steps-remaining {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .step-row {
+    padding: 0.5rem 0;
+  }
+
+  .step-indicator-vertical {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 0.8rem;
+    margin-right: 0.75rem;
+  }
+
+  .step-line-container {
+    left: 15px;
+  }
+
+  .step-icon-check {
+    width: 16px;
+    height: 16px;
+  }
+
+  .step-icon-x {
+    width: 14px;
+    height: 14px;
+  }
+
+  .step-spinner-ring {
+    width: 16px;
+    height: 16px;
+  }
+
+  .step-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .step-title {
+    font-size: 0.9rem;
+  }
+
+  .step-time {
+    font-size: 0.75rem;
+  }
+
+  .step-progress-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .step-time-remaining {
+    text-align: right;
+  }
+
+  .step-description {
+    font-size: 0.75rem;
+  }
+
+  .connection-status {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.75rem;
+  }
+}
+
 /* Responsive - Small Mobile */
 @media (max-width: 380px) {
   .app {

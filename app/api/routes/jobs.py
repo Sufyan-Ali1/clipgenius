@@ -2,12 +2,16 @@
 Job management endpoints
 """
 
+import json
 import time
+import asyncio
 import aiofiles
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
+from sse_starlette.sse import EventSourceResponse
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -15,6 +19,20 @@ from app.models.requests import JobRequest
 from app.models.responses import JobResponse, JobListResponse, JobResults, ErrorResponse
 from app.services.job_service import JobService, get_job_service
 from app.workers.pipeline_worker import run_pipeline
+
+# Estimated durations per step (in seconds) for time estimation
+STEP_ESTIMATES = {
+    "pending": 0,
+    "downloading": 45,
+    "transcribing": 90,
+    "analyzing": 45,
+    "selecting": 10,
+    "cutting": 60,
+    "subtitling": 30,
+    "uploading": 20,
+    "completed": 0,
+    "failed": 0,
+}
 
 logger = get_logger("jobs_api")
 
@@ -258,6 +276,114 @@ async def get_job(
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
 
     return job
+
+
+@router.get(
+    "/{job_id}/stream",
+    summary="Stream job progress (SSE)",
+    description="Real-time job progress updates via Server-Sent Events",
+)
+async def stream_job_progress(
+    job_id: str,
+    job_service: JobService = Depends(get_job_service),
+):
+    """
+    Stream real-time job progress updates via Server-Sent Events (SSE).
+
+    This endpoint provides live progress updates including:
+    - Current step and overall progress
+    - Step-level progress (e.g., "Cutting clip 3/5")
+    - Elapsed and remaining time estimates
+    - Step completion notifications
+
+    Connect using EventSource in JavaScript:
+    ```javascript
+    const eventSource = new EventSource('/api/v1/jobs/{job_id}/stream');
+    eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log(data);
+    };
+    ```
+    """
+    async def event_generator():
+        """Generate SSE events for job progress."""
+        # Check if job exists
+        job = job_service.get_job(job_id)
+        if not job:
+            yield {
+                "event": "error",
+                "data": json.dumps({"error": f"Job {job_id} not found"})
+            }
+            return
+
+        step_order = ["downloading", "transcribing", "analyzing", "selecting", "cutting", "subtitling", "uploading"]
+
+        while True:
+            job = job_service.get_job(job_id)
+            if not job:
+                yield {
+                    "event": "error",
+                    "data": json.dumps({"error": "Job not found"})
+                }
+                break
+
+            # Calculate elapsed time for current step
+            elapsed = 0
+            if job.step_started_at:
+                elapsed = int((datetime.now() - job.step_started_at).total_seconds())
+
+            # Calculate remaining time for current step
+            step_estimate = STEP_ESTIMATES.get(job.status.value, 60)
+            step_remaining = max(0, step_estimate - elapsed)
+
+            # Calculate total remaining time (current step + future steps)
+            current_idx = step_order.index(job.status.value) if job.status.value in step_order else -1
+            future_steps = step_order[current_idx + 1:] if current_idx >= 0 else []
+            future_time = sum(STEP_ESTIMATES.get(s, 0) for s in future_steps)
+
+            # Don't count subtitling if not enabled
+            if not job.add_subtitles and "subtitling" in future_steps:
+                future_time -= STEP_ESTIMATES.get("subtitling", 0)
+
+            total_remaining = step_remaining + future_time
+
+            # Build event data
+            event_data = {
+                "job_id": job.job_id,
+                "status": job.status.value,
+                "progress": job.progress,
+                "current_step": job.current_step,
+                "step_progress": job.step_progress,
+                "step_message": job.step_message,
+                "elapsed": elapsed,
+                "step_remaining": step_remaining,
+                "total_remaining": total_remaining,
+                "step_durations": job.step_durations,
+                "add_subtitles": job.add_subtitles,
+            }
+
+            # Add results summary if completed
+            if job.status.value == "completed" and job.results:
+                event_data["clips_count"] = len(job.results.clips)
+                event_data["total_duration"] = job.results.total_duration
+
+            # Add error if failed
+            if job.status.value == "failed":
+                event_data["error"] = job.error
+
+            yield {
+                "event": "progress",
+                "data": json.dumps(event_data)
+            }
+
+            # Stop streaming if job is in terminal state
+            if job.status.value in ["completed", "failed", "cancelled"]:
+                break
+
+            # Wait before next update
+            await asyncio.sleep(0.5)
+
+    return EventSourceResponse(event_generator())
 
 
 @router.get(

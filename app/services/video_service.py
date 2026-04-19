@@ -234,14 +234,37 @@ class VideoService:
         if progress_callback:
             progress_callback(0.0, "Preparing to cut clips...")
 
+        video_path = Path(video_path)
+        if not video_path.exists():
+            raise FileNotFoundError(f"Video not found: {video_path}")
+
+        total_clips = len(clips)
+        output_paths = []
         loop = asyncio.get_event_loop()
 
-        output_paths = await loop.run_in_executor(
-            None,
-            self._cut_clips_sync,
-            video_path,
-            clips,
-        )
+        for i, clip in enumerate(clips):
+            if progress_callback:
+                progress_callback(i / total_clips, f"Cutting clip {i+1}/{total_clips}...")
+
+            clip_num = clip.get("clip_number", i + 1)
+            filename = clip.get("filename", f"clip_{clip_num:03d}.{self.output_format}")
+            output_path = self.output_dir / filename
+
+            try:
+                await loop.run_in_executor(
+                    None,
+                    self._cut_single_clip,
+                    video_path,
+                    clip["start_seconds"],
+                    clip["end_seconds"],
+                    output_path,
+                    None,  # vertical (use default)
+                )
+                clip["output_path"] = str(output_path)
+                output_paths.append(output_path)
+                logger.info(f"  Cut clip {clip_num}: {output_path.name}")
+            except Exception as e:
+                logger.error(f"  Error cutting clip {clip_num}: {e}")
 
         if progress_callback:
             progress_callback(1.0, f"Cut {len(output_paths)} clips")

@@ -129,8 +129,23 @@ class JobService:
             if not job:
                 return None
 
+            now = datetime.now()
+
+            # Track duration of previous step if status changed
+            step_durations = dict(job.step_durations) if job.step_durations else {}
+            if job.status != status and job.step_started_at:
+                prev_duration = (now - job.step_started_at).total_seconds()
+                step_durations[job.status.value] = round(prev_duration, 1)
+
             # Create updated job (Pydantic models are immutable by default)
-            update_data = {"status": status, "updated_at": datetime.now()}
+            update_data = {
+                "status": status,
+                "updated_at": now,
+                "step_progress": 0.0,  # Reset step progress for new step
+                "step_started_at": now,  # Mark step start time
+                "step_message": None,
+                "step_durations": step_durations,
+            }
 
             if progress is not None:
                 update_data["progress"] = progress
@@ -141,6 +156,41 @@ class JobService:
             self._jobs[job_id] = updated_job
 
             logger.info(f"Job {job_id}: {status.value} - {current_step or ''}")
+            return updated_job
+
+    def update_step_progress(
+        self,
+        job_id: str,
+        step_progress: float,
+        step_message: Optional[str] = None,
+    ) -> Optional[JobResponse]:
+        """
+        Update progress within the current step (for SSE streaming).
+
+        Args:
+            job_id: Job identifier
+            step_progress: Progress within current step (0.0-1.0)
+            step_message: Detailed message for current step
+
+        Returns:
+            Updated job response or None if not found
+        """
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return None
+
+            update_data = {
+                "step_progress": min(1.0, max(0.0, step_progress)),
+                "updated_at": datetime.now(),
+            }
+
+            if step_message is not None:
+                update_data["step_message"] = step_message
+
+            updated_job = job.model_copy(update=update_data)
+            self._jobs[job_id] = updated_job
+
             return updated_job
 
     def set_results(

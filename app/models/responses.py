@@ -3,7 +3,7 @@ Pydantic response models
 """
 
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
 from .enums import JobStatus
@@ -54,6 +54,26 @@ class JobResponse(BaseModel):
     add_subtitles: bool = Field(default=False, description="Whether subtitles are enabled")
     results: Optional[JobResults] = Field(None, description="Job results when completed")
     error: Optional[str] = Field(None, description="Error message if failed")
+
+    # SSE streaming - step-level progress tracking
+    step_progress: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Progress within current step (0.0 to 1.0)"
+    )
+    step_started_at: Optional[datetime] = Field(
+        None,
+        description="When current step started"
+    )
+    step_message: Optional[str] = Field(
+        None,
+        description="Detailed message for current step"
+    )
+    step_durations: Dict[str, float] = Field(
+        default_factory=dict,
+        description="Duration of completed steps in seconds"
+    )
 
 
 class JobListResponse(BaseModel):

@@ -5,7 +5,7 @@ Orchestrates the SRP services to process videos.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -22,6 +22,24 @@ from app.services.download_service import DownloadService
 from app.services.storage_service import StorageService
 
 logger = get_logger("pipeline_worker")
+
+
+def create_progress_callback(job_id: str) -> Callable[[float, str], None]:
+    """
+    Create a progress callback for SSE streaming.
+
+    Args:
+        job_id: Job identifier
+
+    Returns:
+        Callback function that updates step progress
+    """
+    job_service = get_job_service()
+
+    def callback(progress: float, message: str) -> None:
+        job_service.update_step_progress(job_id, progress, message)
+
+    return callback
 
 
 async def run_pipeline(job_id: str, request: JobRequest) -> None:
@@ -103,9 +121,11 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
             current_step="Transcribing audio with Whisper...",
         )
 
+        progress_callback = create_progress_callback(job_id)
         transcription = await transcription_service.transcribe(
             video_path,
             output_path=transcription_path,
+            progress_callback=progress_callback,
         )
 
         # =====================================================================
@@ -118,9 +138,11 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
             current_step="Analyzing content with LLM...",
         )
 
+        progress_callback = create_progress_callback(job_id)
         suggestions = await analysis_service.analyze(
             transcription,
             output_path=analysis_path,
+            progress_callback=progress_callback,
         )
 
         if not suggestions:
@@ -155,7 +177,12 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
             current_step=f"Cutting {len(final_clips)} clips...",
         )
 
-        output_paths = await video_service.cut_clips(video_path, final_clips)
+        progress_callback = create_progress_callback(job_id)
+        output_paths = await video_service.cut_clips(
+            video_path,
+            final_clips,
+            progress_callback=progress_callback,
+        )
 
         # =====================================================================
         # STEP 6: Subtitles (Optional)
@@ -168,6 +195,7 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
                 current_step="Adding subtitles...",
             )
 
+            progress_callback = create_progress_callback(job_id)
             srt_paths = await subtitle_service.generate_subtitles(
                 transcription,
                 final_clips,
@@ -176,7 +204,9 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
 
             # Burn subtitles into clips
             final_output_paths = []
-            for clip, clip_path, srt_path in zip(final_clips, output_paths, srt_paths):
+            total_clips = len(output_paths)
+            for i, (clip, clip_path, srt_path) in enumerate(zip(final_clips, output_paths, srt_paths)):
+                progress_callback(i / total_clips, f"Adding subtitles to clip {i+1}/{total_clips}...")
                 if srt_path.exists():
                     try:
                         subtitled_path = await video_service.add_subtitles(
@@ -192,6 +222,7 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
                 else:
                     final_output_paths.append(clip_path)
 
+            progress_callback(1.0, "Subtitles complete")
             output_paths = final_output_paths
 
         # =====================================================================
