@@ -15,6 +15,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.models.enums import JobStatus
 from app.models.requests import JobRequest
 from app.models.responses import JobResponse, JobListResponse, JobResults, ErrorResponse
 from app.services.job_service import JobService, get_job_service
@@ -23,6 +24,7 @@ from app.workers.pipeline_worker import run_pipeline
 # Estimated durations per step (in seconds) for time estimation
 STEP_ESTIMATES = {
     "pending": 0,
+    "uploading_video": 30,  # Receiving uploaded video
     "downloading": 45,
     "transcribing": 90,
     "analyzing": 45,
@@ -213,6 +215,149 @@ async def upload_video(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
+@router.post(
+    "/upload/start",
+    response_model=JobResponse,
+    status_code=201,
+    summary="Start upload job",
+    description="""Create a job for file upload and return job_id immediately.
+
+Use this to get a job_id first, then upload the file to /jobs/{job_id}/file.
+This allows showing upload progress on the job status page.""",
+)
+async def start_upload_job(
+    filename: str = Form(..., description="Original filename"),
+    filesize: int = Form(..., description="File size in bytes"),
+    num_clips: Optional[int] = Form(default=None, ge=1, le=20),
+    min_duration: Optional[int] = Form(default=None, ge=15, le=120),
+    max_duration: Optional[int] = Form(default=None, ge=30, le=180),
+    add_subtitles: Optional[bool] = Form(default=None),
+    vertical_mode: Optional[bool] = Form(default=None),
+    video_quality: Optional[str] = Form(default=None),
+    job_service: JobService = Depends(get_job_service),
+) -> JobResponse:
+    """Create a job for upload - returns immediately so client can redirect to status page."""
+
+    # Validate file extension
+    file_ext = Path(filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type '{file_ext}'. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
+
+    if filesize > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+        )
+
+    # Create placeholder path (will be set when file is uploaded)
+    settings.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    safe_filename = f"upload_{int(time.time())}_{filename.replace(' ', '_')}"
+    file_path = settings.UPLOADS_DIR / safe_filename
+
+    # Create job request
+    request = JobRequest(
+        input_source=str(file_path),
+        num_clips=num_clips,
+        min_duration=min_duration,
+        max_duration=max_duration,
+        add_subtitles=add_subtitles,
+        vertical_mode=vertical_mode,
+        video_quality=video_quality,
+    )
+
+    # Create job
+    job = job_service.create_job(request)
+
+    # Update to uploading_video status
+    job_service.update_status(
+        job.job_id,
+        JobStatus.UPLOADING_VIDEO,
+        progress=0.0,
+        current_step="Waiting for upload..."
+    )
+
+    logger.info(f"Created upload job {job.job_id} for file: {filename} ({filesize} bytes)")
+
+    return job_service.get_job(job.job_id)
+
+
+@router.post(
+    "/{job_id}/file",
+    response_model=JobResponse,
+    summary="Upload file to job",
+    description="Upload the video file for a job created with /upload/start",
+)
+async def upload_job_file(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="Video file"),
+    job_service: JobService = Depends(get_job_service),
+) -> JobResponse:
+    """Upload file to an existing job and start processing."""
+
+    job = job_service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    if job.status != JobStatus.UPLOADING_VIDEO:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job {job_id} is not waiting for upload (status: {job.status.value})"
+        )
+
+    # Get the file path from job's input_source
+    file_path = Path(job.input_source)
+
+    try:
+        # Read file size for progress calculation
+        file.file.seek(0, 2)  # Seek to end
+        total_size = file.file.tell()
+        file.file.seek(0)  # Seek back to start
+
+        if total_size == 0:
+            raise HTTPException(status_code=400, detail="Empty file")
+
+        chunk_size = 1024 * 1024  # 1MB chunks
+        bytes_written = 0
+
+        async with aiofiles.open(file_path, 'wb') as out_file:
+            while chunk := await file.read(chunk_size):
+                await out_file.write(chunk)
+                bytes_written += len(chunk)
+
+                # Update progress
+                progress = bytes_written / total_size
+                job_service.update_step_progress(
+                    job_id,
+                    progress,
+                    f"Uploading... {bytes_written // (1024*1024)}MB / {total_size // (1024*1024)}MB"
+                )
+
+        logger.info(f"Upload complete for job {job_id}: {file_path} ({bytes_written} bytes)")
+
+        # Create request from job's stored values
+        request = JobRequest(
+            input_source=str(file_path),
+            add_subtitles=job.add_subtitles,
+        )
+
+        # Start pipeline processing
+        background_tasks.add_task(run_pipeline, job_id, request)
+
+        return job_service.get_job(job_id)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        file_path.unlink(missing_ok=True)
+        job_service.set_error(job_id, f"Upload failed: {str(e)}")
+        logger.error(f"Upload failed for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
 @router.get(
     "",
     response_model=JobListResponse,
@@ -316,7 +461,7 @@ async def stream_job_progress(
             }
             return
 
-        step_order = ["downloading", "transcribing", "analyzing", "selecting", "cutting", "subtitling", "uploading"]
+        step_order = ["uploading_video", "downloading", "transcribing", "analyzing", "selecting", "cutting", "subtitling", "uploading"]
 
         while True:
             job = job_service.get_job(job_id)

@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import ProgressBar from '../components/ProgressBar';
 import StepsList from '../components/StepsList';
 import ClipsList from '../components/ClipsList';
-import { getJob, getJobResults, API_URL } from '../lib/api';
+import { getJob, getJobResults, uploadJobFile, API_URL } from '../lib/api';
 
 function JobStatus() {
   const { id } = useParams();
+  const location = useLocation();
   const [job, setJob] = useState(null);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
@@ -20,6 +21,10 @@ function JobStatus() {
   const [stepRemaining, setStepRemaining] = useState(0);
   const [totalRemaining, setTotalRemaining] = useState(0);
   const [stepDurations, setStepDurations] = useState({});
+
+  // Upload state
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadStartedRef = useRef(false);
 
   const eventSourceRef = useRef(null);
   const fallbackIntervalRef = useRef(null);
@@ -37,6 +42,33 @@ function JobStatus() {
       }
     };
   }, [id]);
+
+  // Handle file upload if we have a file to upload
+  useEffect(() => {
+    const fileToUpload = location.state?.fileToUpload;
+
+    if (fileToUpload && job?.status === 'uploading_video' && !uploadStartedRef.current) {
+      uploadStartedRef.current = true;
+      setIsUploading(true);
+
+      uploadJobFile(id, fileToUpload, (progress) => {
+        // Progress is also tracked via SSE, but we can update local state too
+        setStepProgress(progress);
+        const mbUploaded = Math.round((fileToUpload.size * progress) / (1024 * 1024));
+        const mbTotal = Math.round(fileToUpload.size / (1024 * 1024));
+        setStepMessage(`Uploading... ${mbUploaded}MB / ${mbTotal}MB`);
+      })
+        .then(() => {
+          setIsUploading(false);
+          // Clear the file from state to prevent re-upload on refresh
+          window.history.replaceState({}, document.title);
+        })
+        .catch((err) => {
+          setIsUploading(false);
+          setError(`Upload failed: ${err.message}`);
+        });
+    }
+  }, [job?.status, id, location.state]);
 
   // Setup SSE or fallback to polling
   useEffect(() => {

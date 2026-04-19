@@ -9,6 +9,7 @@ class JobStatus(str, Enum):
     """Job processing status."""
 
     PENDING = "pending"
+    UPLOADING_VIDEO = "uploading_video"  # Receiving uploaded video from client
     DOWNLOADING = "downloading"
     TRANSCRIBING = "transcribing"
     ANALYZING = "analyzing"

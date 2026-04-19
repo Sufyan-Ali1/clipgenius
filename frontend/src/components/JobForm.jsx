@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createJob, uploadVideo } from '../lib/api';
+import { createJob, startUploadJob } from '../lib/api';
 
 function JobForm() {
   const [inputMode, setInputMode] = useState('youtube'); // 'youtube' or 'upload'
@@ -10,7 +10,6 @@ function JobForm() {
   const [addSubtitles, setAddSubtitles] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -64,7 +63,6 @@ function JobForm() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setUploadProgress(0);
 
     try {
       let result;
@@ -73,7 +71,12 @@ function JobForm() {
         if (!file) {
           throw new Error('Please select a video file');
         }
-        result = await uploadVideo(file, { add_subtitles: addSubtitles });
+        // Start upload job - this returns immediately with job_id
+        result = await startUploadJob(file, { add_subtitles: addSubtitles });
+
+        // Navigate to status page with file to upload
+        navigate(`/jobs/${result.job_id}`, { state: { fileToUpload: file } });
+        return;
       } else {
         if (!url) {
           throw new Error('Please enter a YouTube URL');
@@ -84,7 +87,6 @@ function JobForm() {
       navigate(`/jobs/${result.job_id}`);
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -144,14 +146,15 @@ function JobForm() {
                 <span className="file-name">{file.name}</span>
                 <span className="file-size">{formatFileSize(file.size)}</span>
               </div>
-              <button
-                type="button"
-                className="remove-file"
-                onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                disabled={loading}
-              >
-                ×
-              </button>
+              {!loading && (
+                <button
+                  type="button"
+                  className="remove-file"
+                  onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                >
+                  ×
+                </button>
+              )}
             </div>
           ) : (
             <div className="upload-prompt">

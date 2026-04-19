@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 // Estimated durations per step (in seconds)
 const STEP_ESTIMATES = {
+  uploading_video: 30,
   downloading: 45,
   transcribing: 90,
   analyzing: 45,
@@ -12,6 +13,7 @@ const STEP_ESTIMATES = {
 
 // Step descriptions shown during processing
 const STEP_DESCRIPTIONS = {
+  uploading_video: 'Receiving your video file...',
   downloading: 'Fetching video from source...',
   transcribing: 'Converting speech to text...',
   analyzing: 'Finding viral-worthy moments...',
@@ -54,9 +56,13 @@ function StepsList({
     }
   }, [currentStatus]);
 
+  // Determine if this is an upload job (not YouTube download)
+  const isUploadJob = currentStatus === 'uploading_video' || stepDurations.uploading_video !== undefined;
+
   // Define all pipeline steps in order
   const allSteps = [
-    { key: 'downloading', label: 'Download Video' },
+    { key: 'uploading_video', label: 'Upload Video', showIf: isUploadJob },
+    { key: 'downloading', label: 'Download Video', showIf: !isUploadJob },
     { key: 'transcribing', label: 'Transcribe Audio' },
     { key: 'analyzing', label: 'Analyze Content' },
     { key: 'selecting', label: 'Select Clips' },
