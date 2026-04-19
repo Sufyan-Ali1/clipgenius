@@ -36,22 +36,42 @@ class VideoService:
         self._check_ffmpeg()
 
     def _check_hw_acceleration(self) -> Optional[str]:
-        """Check if hardware acceleration is available (NVIDIA NVENC or Intel QSV)."""
+        """Check if hardware acceleration is available and working."""
+        # Test NVIDIA NVENC by actually trying to use it
         try:
-            # Check for NVIDIA NVENC
             result = subprocess.run(
-                ["ffmpeg", "-hide_banner", "-encoders"],
+                [
+                    "ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "nullsrc=s=256x256:d=0.1",
+                    "-c:v", "h264_nvenc", "-f", "null", "-"
+                ],
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=10
             )
-            if "h264_nvenc" in result.stdout:
-                logger.info("NVIDIA NVENC hardware acceleration available")
+            if result.returncode == 0:
+                logger.info("NVIDIA NVENC hardware acceleration available and working")
                 return "nvenc"
-            if "h264_qsv" in result.stdout:
-                logger.info("Intel QSV hardware acceleration available")
+        except Exception as e:
+            logger.debug(f"NVENC test failed: {e}")
+
+        # Test Intel QSV
+        try:
+            result = subprocess.run(
+                [
+                    "ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "nullsrc=s=256x256:d=0.1",
+                    "-c:v", "h264_qsv", "-f", "null", "-"
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info("Intel QSV hardware acceleration available and working")
                 return "qsv"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"QSV test failed: {e}")
+
+        logger.info("No hardware acceleration available, using CPU encoding")
         return None
 
     def _check_ffmpeg(self):
