@@ -29,10 +29,30 @@ class VideoService:
         self.vertical_method = settings.VERTICAL_METHOD
         self.vertical_width = settings.VERTICAL_WIDTH
         self.vertical_height = settings.VERTICAL_HEIGHT
-        self.video_crf = 17  # Higher quality (lower = better, 17-18 is near lossless)
+        self.video_crf = 17  # High quality (near lossless)
+        self.use_hw_accel = self._check_hw_acceleration()
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._check_ffmpeg()
+
+    def _check_hw_acceleration(self) -> Optional[str]:
+        """Check if hardware acceleration is available (NVIDIA NVENC or Intel QSV)."""
+        try:
+            # Check for NVIDIA NVENC
+            result = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-encoders"],
+                capture_output=True,
+                text=True
+            )
+            if "h264_nvenc" in result.stdout:
+                logger.info("NVIDIA NVENC hardware acceleration available")
+                return "nvenc"
+            if "h264_qsv" in result.stdout:
+                logger.info("Intel QSV hardware acceleration available")
+                return "qsv"
+        except Exception:
+            pass
+        return None
 
     def _check_ffmpeg(self):
         """Verify FFmpeg is installed."""
@@ -121,13 +141,31 @@ class VideoService:
                 video_info["height"]
             )
             cmd.extend(["-filter_complex", filter_str])
-            # Re-encode needed for filters
+
+            # Use hardware acceleration if available
+            if self.use_hw_accel == "nvenc":
+                cmd.extend([
+                    "-c:v", "h264_nvenc",
+                    "-preset", "p4",  # Fast NVENC preset
+                    "-cq", str(self.video_crf),
+                ])
+            elif self.use_hw_accel == "qsv":
+                cmd.extend([
+                    "-c:v", "h264_qsv",
+                    "-preset", "fast",
+                    "-global_quality", str(self.video_crf),
+                ])
+            else:
+                # CPU encoding
+                cmd.extend([
+                    "-c:v", "libx264",
+                    "-preset", "fast",
+                    "-crf", str(self.video_crf),
+                ])
+
             cmd.extend([
-                "-c:v", "libx264",
-                "-preset", "slow",  # Better quality (slower encoding)
-                "-crf", str(self.video_crf),
                 "-c:a", "aac",
-                "-b:a", "192k",  # Higher audio quality
+                "-b:a", "128k",
                 "-movflags", "+faststart",
                 str(output_path)
             ])
@@ -295,12 +333,29 @@ class VideoService:
             "-y",
             "-i", str(clip_path),
             "-vf", subtitle_filter,
-            "-c:v", "libx264",
-            "-preset", "medium",
-            "-crf", str(self.video_crf),
-            "-c:a", "copy",
-            str(output_path)
         ]
+
+        # Use hardware acceleration if available
+        if self.use_hw_accel == "nvenc":
+            cmd.extend([
+                "-c:v", "h264_nvenc",
+                "-preset", "p4",
+                "-cq", str(self.video_crf),
+            ])
+        elif self.use_hw_accel == "qsv":
+            cmd.extend([
+                "-c:v", "h264_qsv",
+                "-preset", "fast",
+                "-global_quality", str(self.video_crf),
+            ])
+        else:
+            cmd.extend([
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", str(self.video_crf),
+            ])
+
+        cmd.extend(["-c:a", "copy", str(output_path)])
 
         try:
             subprocess.run(cmd, check=True, capture_output=True)
