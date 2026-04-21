@@ -2,9 +2,24 @@
 Pydantic request models
 """
 
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 import re
+
+
+class ManualClip(BaseModel):
+    """Manual clip timestamp definition."""
+    start: str = Field(..., description="Start time in MM:SS or HH:MM:SS format")
+    end: str = Field(..., description="End time in MM:SS or HH:MM:SS format")
+
+    @field_validator("start", "end")
+    @classmethod
+    def validate_timestamp(cls, v: str) -> str:
+        """Validate timestamp format."""
+        v = v.strip()
+        if not re.match(r'^(\d{1,2}:)?\d{1,2}:\d{2}$', v):
+            raise ValueError(f"Invalid timestamp format: {v}. Use MM:SS or HH:MM:SS")
+        return v
 
 
 class JobRequest(BaseModel):
@@ -69,6 +84,12 @@ class JobRequest(BaseModel):
     video_quality: Optional[str] = Field(
         default=None,
         json_schema_extra={"hidden": True}
+    )
+
+    # Manual mode - user provides timestamps directly
+    manual_clips: Optional[List[ManualClip]] = Field(
+        default=None,
+        description="List of manual clip timestamps. If provided, skips AI analysis."
     )
 
     @field_validator("input_source")

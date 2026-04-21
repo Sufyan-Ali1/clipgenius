@@ -110,13 +110,20 @@ class VideoService:
         out_h = self.vertical_height
 
         if self.vertical_method in ["blur", "blur_padding"]:
-            # Blur padding: Full video visible with blurred background filling sides
-            # This keeps ALL content visible - no cropping!
+            # Dark blur padding: Full video visible with darkened blurred background
+            # Step 1: Create dark blurred background
+            #   - Scale up to cover output dimensions
+            #   - Crop to exact output size
+            #   - Darken significantly (brightness=-0.4, saturation=0.3)
+            #   - Apply heavy blur
+            # Step 2: Scale foreground to fit inside output (preserving aspect ratio)
+            # Step 3: Center overlay foreground on dark blurred background
             filter_complex = (
-                f"[0:v]scale={out_w}:{out_h}:force_original_aspect_ratio=increase,"
-                f"crop={out_w}:{out_h},boxblur=25:5[bg];"
-                f"[0:v]scale=w='min({out_w},iw*{out_h}/ih)':h='min({out_h},ih*{out_w}/iw)':"
-                f"force_original_aspect_ratio=decrease[fg];"
+                f"[0:v]scale=w={out_w}:h={out_h}:force_original_aspect_ratio=increase,"
+                f"crop={out_w}:{out_h}:(iw-{out_w})/2:(ih-{out_h})/2,"
+                f"eq=brightness=-0.4:saturation=0.3,"
+                f"boxblur=40:15[bg];"
+                f"[0:v]scale=w={out_w}:h={out_h}:force_original_aspect_ratio=decrease[fg];"
                 f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
             )
         elif self.vertical_method == "black_bars":

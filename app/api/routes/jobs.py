@@ -16,7 +16,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.enums import JobStatus
-from app.models.requests import JobRequest
+from app.models.requests import JobRequest, ManualClip
 from app.models.responses import JobResponse, JobListResponse, JobResults, ErrorResponse
 from app.services.job_service import JobService, get_job_service
 from app.workers.pipeline_worker import run_pipeline
@@ -72,6 +72,17 @@ async def create_job(
                 "description": "Process a local video file",
                 "value": {
                     "input_source": "C:/Videos/my_video.mp4"
+                }
+            },
+            "manual_mode": {
+                "summary": "Manual timestamps",
+                "description": "Provide exact timestamps - skips AI analysis",
+                "value": {
+                    "input_source": "https://youtube.com/watch?v=xxxxx",
+                    "manual_clips": [
+                        {"start": "00:30", "end": "01:45"},
+                        {"start": "02:10", "end": "03:25"}
+                    ]
                 }
             }
         }
@@ -208,7 +219,9 @@ async def upload_video(
     description="""Create a job for file upload and return job_id immediately.
 
 Use this to get a job_id first, then upload the file to /jobs/{job_id}/file.
-This allows showing upload progress on the job status page.""",
+This allows showing upload progress on the job status page.
+
+For manual mode, provide manual_clips as JSON array: [{"start": "00:30", "end": "01:45"}]""",
 )
 async def start_upload_job(
     filename: str = Form(..., description="Original filename"),
@@ -219,6 +232,7 @@ async def start_upload_job(
     add_subtitles: Optional[bool] = Form(default=None),
     vertical_mode: Optional[bool] = Form(default=None),
     video_quality: Optional[str] = Form(default=None),
+    manual_clips: Optional[str] = Form(default=None, description="JSON array of manual timestamps"),
     job_service: JobService = Depends(get_job_service),
 ) -> JobResponse:
     """Create a job for upload - returns immediately so client can redirect to status page."""
@@ -237,6 +251,18 @@ async def start_upload_job(
             detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
         )
 
+    # Parse manual_clips JSON if provided
+    parsed_manual_clips = None
+    if manual_clips:
+        try:
+            clips_data = json.loads(manual_clips)
+            parsed_manual_clips = [ManualClip(**clip) for clip in clips_data]
+        except (json.JSONDecodeError, ValueError) as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid manual_clips format: {str(e)}"
+            )
+
     # Create placeholder path (will be set when file is uploaded)
     settings.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     safe_filename = f"upload_{int(time.time())}_{filename.replace(' ', '_')}"
@@ -251,10 +277,18 @@ async def start_upload_job(
         add_subtitles=add_subtitles,
         vertical_mode=vertical_mode,
         video_quality=video_quality,
+        manual_clips=parsed_manual_clips,
     )
 
     # Create job
     job = job_service.create_job(request)
+
+    # Store manual clips for later use in upload_job_file
+    if parsed_manual_clips:
+        manual_clips_file = settings.TEMP_DIR / f"{job.job_id}_manual_clips.json"
+        settings.TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        with open(manual_clips_file, "w") as f:
+            json.dump([{"start": mc.start, "end": mc.end} for mc in parsed_manual_clips], f)
 
     # Update to uploading_video status
     job_service.update_status(
@@ -264,7 +298,8 @@ async def start_upload_job(
         current_step="Waiting for upload..."
     )
 
-    logger.info(f"Created upload job {job.job_id} for file: {filename} ({filesize} bytes)")
+    is_manual = parsed_manual_clips is not None
+    logger.info(f"Created upload job {job.job_id} for file: {filename} ({filesize} bytes), manual_mode={is_manual}")
 
     return job_service.get_job(job.job_id)
 
@@ -323,10 +358,23 @@ async def upload_job_file(
 
         logger.info(f"Upload complete for job {job_id}: {file_path} ({bytes_written} bytes)")
 
+        # Load manual clips if they exist
+        manual_clips_list = None
+        manual_clips_file = settings.TEMP_DIR / f"{job_id}_manual_clips.json"
+        if manual_clips_file.exists():
+            try:
+                with open(manual_clips_file, "r") as f:
+                    clips_data = json.load(f)
+                manual_clips_list = [ManualClip(**clip) for clip in clips_data]
+                logger.info(f"Loaded {len(manual_clips_list)} manual clips for job {job_id}")
+            except Exception as e:
+                logger.warning(f"Could not load manual clips: {e}")
+
         # Create request from job's stored values
         request = JobRequest(
             input_source=str(file_path),
             add_subtitles=job.add_subtitles,
+            manual_clips=manual_clips_list,
         )
 
         # Start pipeline processing
@@ -485,6 +533,7 @@ async def stream_job_progress(
                 "total_remaining": total_remaining,
                 "step_durations": job.step_durations,
                 "add_subtitles": job.add_subtitles,
+                "is_manual_mode": job.is_manual_mode,
             }
 
             # Add results summary if completed

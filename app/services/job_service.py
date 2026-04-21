@@ -51,6 +51,9 @@ class JobService:
         # Get add_subtitles value from request or fall back to settings
         add_subtitles = request.add_subtitles if request.add_subtitles is not None else settings.ADD_SUBTITLES
 
+        # Determine if this is manual mode (user provided timestamps)
+        is_manual_mode = request.manual_clips is not None and len(request.manual_clips) > 0
+
         job = JobResponse(
             job_id=job_id,
             status=JobStatus.PENDING,
@@ -60,6 +63,7 @@ class JobService:
             updated_at=now,
             input_source=request.input_source,
             add_subtitles=add_subtitles,
+            is_manual_mode=is_manual_mode,
             results=None,
             error=None,
         )

@@ -5,12 +5,12 @@ Orchestrates the SRP services to process videos.
 """
 
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.enums import JobStatus
-from app.models.requests import JobRequest
+from app.models.requests import JobRequest, ManualClip
 from app.models.responses import JobResults, ClipInfo
 from app.services.job_service import get_job_service
 from app.services.transcription_service import TranscriptionService
@@ -22,6 +22,44 @@ from app.services.download_service import DownloadService
 from app.services.storage_service import StorageService
 
 logger = get_logger("pipeline_worker")
+
+
+def parse_timestamp(ts: str) -> float:
+    """Parse MM:SS or HH:MM:SS timestamp to seconds."""
+    parts = ts.strip().split(":")
+    if len(parts) == 2:
+        return int(parts[0]) * 60 + float(parts[1])
+    elif len(parts) == 3:
+        return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+    else:
+        raise ValueError(f"Invalid timestamp format: {ts}")
+
+
+def convert_manual_clips(manual_clips: List[ManualClip]) -> List[dict]:
+    """
+    Convert user-provided timestamps to clip format for video cutting.
+
+    Args:
+        manual_clips: List of ManualClip with start/end timestamps
+
+    Returns:
+        List of clip dictionaries compatible with video_service
+    """
+    clips = []
+    for i, mc in enumerate(manual_clips, 1):
+        start_seconds = parse_timestamp(mc.start)
+        end_seconds = parse_timestamp(mc.end)
+
+        clips.append({
+            "clip_number": i,
+            "start_seconds": start_seconds,
+            "end_seconds": end_seconds,
+            "duration": end_seconds - start_seconds,
+            "filename": f"clip_{i:03d}.mp4",
+            "hook": f"Manual clip {i}",
+            "score": 10,  # Manual clips are always "perfect"
+        })
+    return clips
 
 
 def create_progress_callback(job_id: str) -> Callable[[float, str], None]:
@@ -129,43 +167,49 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
         )
 
         # =====================================================================
-        # STEP 3: Analysis
+        # STEP 3 & 4: Analysis and Selection (SKIP in manual mode)
         # =====================================================================
-        job_service.update_status(
-            job_id,
-            JobStatus.ANALYZING,
-            progress=0.35,
-            current_step="Analyzing content with LLM...",
-        )
+        is_manual_mode = request.manual_clips is not None and len(request.manual_clips) > 0
 
-        progress_callback = create_progress_callback(job_id)
-        suggestions = await analysis_service.analyze(
-            transcription,
-            output_path=analysis_path,
-            progress_callback=progress_callback,
-        )
+        if is_manual_mode:
+            # Manual mode: skip AI analysis and selection
+            logger.info(f"Manual mode: skipping AI analysis, using {len(request.manual_clips)} user timestamps")
+            final_clips = convert_manual_clips(request.manual_clips)
+        else:
+            # AI mode: analyze with LLM and select best clips
+            job_service.update_status(
+                job_id,
+                JobStatus.ANALYZING,
+                progress=0.35,
+                current_step="Analyzing content with LLM...",
+            )
 
-        if not suggestions:
-            raise ValueError("LLM returned no clip suggestions")
+            progress_callback = create_progress_callback(job_id)
+            suggestions = await analysis_service.analyze(
+                transcription,
+                output_path=analysis_path,
+                progress_callback=progress_callback,
+            )
 
-        # =====================================================================
-        # STEP 4: Selection
-        # =====================================================================
-        job_service.update_status(
-            job_id,
-            JobStatus.SELECTING,
-            progress=0.45,
-            current_step="Selecting best clips...",
-        )
+            if not suggestions:
+                raise ValueError("LLM returned no clip suggestions")
 
-        final_clips = await selection_service.select_clips(
-            suggestions,
-            transcription,
-            output_path=clips_path,
-        )
+            # Selection
+            job_service.update_status(
+                job_id,
+                JobStatus.SELECTING,
+                progress=0.45,
+                current_step="Selecting best clips...",
+            )
 
-        if not final_clips:
-            raise ValueError("No clips met selection criteria")
+            final_clips = await selection_service.select_clips(
+                suggestions,
+                transcription,
+                output_path=clips_path,
+            )
+
+            if not final_clips:
+                raise ValueError("No clips met selection criteria")
 
         # =====================================================================
         # STEP 5: Video Cutting
