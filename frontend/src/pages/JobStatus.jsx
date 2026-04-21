@@ -19,6 +19,7 @@ function JobStatus() {
   const [stepMessage, setStepMessage] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [stepDurations, setStepDurations] = useState({});
+  const [isManualMode, setIsManualMode] = useState(false);
 
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
@@ -131,6 +132,7 @@ function JobStatus() {
             progress: data.progress,
             current_step: data.current_step,
             error: data.error,
+            is_manual_mode: data.is_manual_mode,
           }));
 
           // Update SSE-specific state
@@ -138,6 +140,9 @@ function JobStatus() {
           setStepMessage(data.step_message);
           setElapsed(data.elapsed || 0);
           setStepDurations(data.step_durations || {});
+          if (data.is_manual_mode !== undefined) {
+            setIsManualMode(data.is_manual_mode);
+          }
 
           // Handle completion
           if (data.status === 'completed') {
@@ -185,6 +190,11 @@ function JobStatus() {
       // Update step durations from job data if available
       if (jobData.step_durations) {
         setStepDurations(jobData.step_durations);
+      }
+
+      // Update manual mode flag
+      if (jobData.is_manual_mode !== undefined) {
+        setIsManualMode(jobData.is_manual_mode);
       }
 
       if (jobData.status === 'completed' && !results) {
@@ -248,6 +258,7 @@ function JobStatus() {
           stepMessage={stepMessage}
           elapsed={elapsed}
           stepDurations={stepDurations}
+          isManualMode={isManualMode}
         />
 
         {/* Connection status indicator */}

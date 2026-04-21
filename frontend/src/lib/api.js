@@ -1,13 +1,28 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export async function createJob(inputSource, options = {}) {
+  // Prepare request body
+  const body = {
+    input_source: inputSource,
+  };
+
+  // Add optional parameters
+  if (options.add_subtitles !== undefined) body.add_subtitles = options.add_subtitles;
+  if (options.num_clips) body.num_clips = options.num_clips;
+  if (options.min_duration) body.min_duration = options.min_duration;
+  if (options.max_duration) body.max_duration = options.max_duration;
+  if (options.vertical_mode !== undefined) body.vertical_mode = options.vertical_mode;
+  if (options.video_quality) body.video_quality = options.video_quality;
+
+  // Add manual clips if provided
+  if (options.manual_clips && options.manual_clips.length > 0) {
+    body.manual_clips = options.manual_clips;
+  }
+
   const res = await fetch(`${API_URL}/api/v1/jobs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      input_source: inputSource,
-      ...options,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -121,6 +136,11 @@ export async function startUploadJob(file, options = {}) {
   if (options.add_subtitles !== undefined) formData.append('add_subtitles', options.add_subtitles);
   if (options.vertical_mode !== undefined) formData.append('vertical_mode', options.vertical_mode);
   if (options.video_quality) formData.append('video_quality', options.video_quality);
+
+  // Add manual clips as JSON string if provided
+  if (options.manual_clips && options.manual_clips.length > 0) {
+    formData.append('manual_clips', JSON.stringify(options.manual_clips));
+  }
 
   const res = await fetch(`${API_URL}/api/v1/jobs/upload/start`, {
     method: 'POST',

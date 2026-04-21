@@ -25,6 +25,7 @@ function StepsList({
   stepMessage = null,
   elapsed = 0,
   stepDurations = {},
+  isManualMode = false,
 }) {
   // Local elapsed timer for smoother updates
   const [localElapsed, setLocalElapsed] = useState(elapsed);
@@ -47,12 +48,13 @@ function StepsList({
   const isUploadJob = currentStatus === 'uploading_video' || stepDurations.uploading_video !== undefined;
 
   // Define all pipeline steps in order
+  // In manual mode, skip analyzing and selecting steps
   const allSteps = [
     { key: 'uploading_video', label: 'Upload Video', showIf: isUploadJob },
     { key: 'downloading', label: 'Download Video', showIf: !isUploadJob },
     { key: 'transcribing', label: 'Transcribe Audio' },
-    { key: 'analyzing', label: 'Analyze Content' },
-    { key: 'selecting', label: 'Select Clips' },
+    { key: 'analyzing', label: 'Analyze Content', showIf: !isManualMode },
+    { key: 'selecting', label: 'Select Clips', showIf: !isManualMode },
     { key: 'cutting', label: 'Cut Clips' },
     { key: 'subtitling', label: 'Add Subtitles', showIf: addSubtitles === true },
   ];
