@@ -8,6 +8,7 @@ function ProgressBar({ progress, status, currentStep }) {
     analyzing: '#f59e0b',
     selecting: '#10b981',
     cutting: '#ef4444',
+    clip_metadata: '#a855f7',
     subtitling: '#ec4899',
     uploading: '#06b6d4',
     completed: '#22c55e',

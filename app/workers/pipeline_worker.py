@@ -4,6 +4,7 @@ Pipeline Worker - Background task execution for video processing
 Orchestrates the SRP services to process videos.
 """
 
+import asyncio
 from pathlib import Path
 from typing import Callable, List, Optional
 
@@ -80,6 +81,66 @@ def create_progress_callback(job_id: str) -> Callable[[float, str], None]:
     return callback
 
 
+async def enrich_manual_clips_parallel(
+    final_clips: List[dict],
+    output_paths: List[Path],
+    temp_dir: Path,
+    transcription_service: TranscriptionService,
+    analysis_service: AnalysisService,
+    subtitle_service: SubtitleService,
+    write_srt: bool,
+) -> List[Optional[Path]]:
+    """
+    For each cut clip: transcribe it, ask the LLM for hook+hashtags, and
+    optionally write a per-clip SRT. Runs all clips concurrently.
+
+    Mutates each entry in `final_clips` in place to add `hook` and `hashtags`.
+    Returns a list (clip-aligned) of SRT paths, or None when SRT not written
+    or generation failed.
+    """
+    async def _process(index: int, clip: dict, clip_path: Path) -> Optional[Path]:
+        clip_num = clip.get("clip_number", index + 1)
+        try:
+            transcript = await transcription_service.transcribe(
+                clip_path, output_path=None
+            )
+        except Exception as e:
+            logger.warning(f"Clip {clip_num}: transcription failed: {e}")
+            clip["hashtags"] = []
+            return None
+
+        text = (transcript.get("text") or "").strip()
+
+        try:
+            meta = await analysis_service.generate_clip_metadata(text)
+            if meta.get("hook"):
+                clip["hook"] = meta["hook"]
+            clip["hashtags"] = meta.get("hashtags") or []
+        except Exception as e:
+            logger.warning(f"Clip {clip_num}: metadata LLM failed: {e}")
+            clip.setdefault("hashtags", [])
+
+        if not write_srt:
+            return None
+
+        srt_path = temp_dir / f"clip_{clip_num:03d}.srt"
+        try:
+            await subtitle_service.generate_single_srt(
+                transcript, srt_path, start_offset=0.0
+            )
+            clip["srt_path"] = str(srt_path)
+            return srt_path
+        except Exception as e:
+            logger.warning(f"Clip {clip_num}: SRT write failed: {e}")
+            return None
+
+    tasks = [
+        _process(i, clip, path)
+        for i, (clip, path) in enumerate(zip(final_clips, output_paths))
+    ]
+    return await asyncio.gather(*tasks)
+
+
 async def run_pipeline(job_id: str, request: JobRequest) -> None:
     """
     Execute the complete video processing pipeline.
@@ -149,28 +210,30 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
         analysis_path = temp_dir / f"{video_stem}_analysis.json"
         clips_path = temp_dir / f"{video_stem}_clips.json"
 
-        # =====================================================================
-        # STEP 2: Transcription
-        # =====================================================================
-        job_service.update_status(
-            job_id,
-            JobStatus.TRANSCRIBING,
-            progress=0.15,
-            current_step="Transcribing audio with Whisper...",
-        )
+        is_manual_mode = request.manual_clips is not None and len(request.manual_clips) > 0
 
-        progress_callback = create_progress_callback(job_id)
-        transcription = await transcription_service.transcribe(
-            video_path,
-            output_path=transcription_path,
-            progress_callback=progress_callback,
-        )
+        # =====================================================================
+        # STEP 2: Full-video Transcription (AUTO MODE ONLY)
+        # =====================================================================
+        transcription = None
+        if not is_manual_mode:
+            job_service.update_status(
+                job_id,
+                JobStatus.TRANSCRIBING,
+                progress=0.15,
+                current_step="Transcribing audio with Whisper...",
+            )
+
+            progress_callback = create_progress_callback(job_id)
+            transcription = await transcription_service.transcribe(
+                video_path,
+                output_path=transcription_path,
+                progress_callback=progress_callback,
+            )
 
         # =====================================================================
         # STEP 3 & 4: Analysis and Selection (SKIP in manual mode)
         # =====================================================================
-        is_manual_mode = request.manual_clips is not None and len(request.manual_clips) > 0
-
         if is_manual_mode:
             # Manual mode: skip AI analysis and selection
             logger.info(f"Manual mode: skipping AI analysis, using {len(request.manual_clips)} user timestamps")
@@ -229,6 +292,30 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
         )
 
         # =====================================================================
+        # STEP 5b: Per-clip metadata (MANUAL MODE ONLY)
+        # Transcribes each cut clip, asks LLM for hook+hashtags, and
+        # writes per-clip SRT when subtitles are enabled.
+        # =====================================================================
+        clip_srt_paths: Optional[List[Optional[Path]]] = None
+        if is_manual_mode:
+            job_service.update_status(
+                job_id,
+                JobStatus.CLIP_METADATA,
+                progress=0.65,
+                current_step="Transcribing clips & generating titles...",
+            )
+
+            clip_srt_paths = await enrich_manual_clips_parallel(
+                final_clips,
+                output_paths,
+                temp_dir,
+                transcription_service,
+                analysis_service,
+                subtitle_service,
+                write_srt=add_subtitles,
+            )
+
+        # =====================================================================
         # STEP 6: Subtitles (Optional)
         # =====================================================================
         if add_subtitles:
@@ -240,11 +327,18 @@ async def run_pipeline(job_id: str, request: JobRequest) -> None:
             )
 
             progress_callback = create_progress_callback(job_id)
-            srt_paths = await subtitle_service.generate_subtitles(
-                transcription,
-                final_clips,
-                temp_dir,
-            )
+            if is_manual_mode:
+                # Per-clip SRTs already written in CLIP_METADATA step.
+                srt_paths = [
+                    p if p is not None else (temp_dir / f"clip_{i+1:03d}.srt")
+                    for i, p in enumerate(clip_srt_paths or [])
+                ]
+            else:
+                srt_paths = await subtitle_service.generate_subtitles(
+                    transcription,
+                    final_clips,
+                    temp_dir,
+                )
 
             # Burn subtitles into clips
             final_output_paths = []

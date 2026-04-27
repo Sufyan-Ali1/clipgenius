@@ -15,6 +15,7 @@ class JobStatus(str, Enum):
     ANALYZING = "analyzing"
     SELECTING = "selecting"
     CUTTING = "cutting"
+    CLIP_METADATA = "clip_metadata"
     SUBTITLING = "subtitling"
     UPLOADING = "uploading"
     COMPLETED = "completed"

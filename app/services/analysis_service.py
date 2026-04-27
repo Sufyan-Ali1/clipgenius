@@ -40,13 +40,15 @@ class AnalysisService:
             self._llm = get_llm_provider(self.provider)
         return self._llm
 
-    def _load_prompt_template(self) -> str:
-        """Load the engagement analysis prompt template."""
-        prompt_file = self.prompts_dir / "engagement_prompt.txt"
+    def _load_prompt_template(self, filename: str = "engagement_prompt.txt") -> str:
+        """Load a prompt template by filename from the prompts dir."""
+        prompt_file = self.prompts_dir / filename
         if prompt_file.exists():
             return prompt_file.read_text(encoding="utf-8")
-        else:
+        elif filename == "engagement_prompt.txt":
             return self._get_default_prompt()
+        else:
+            raise FileNotFoundError(f"Prompt template not found: {prompt_file}")
 
     def _get_default_prompt(self) -> str:
         """Return default prompt if template file doesn't exist."""
@@ -325,3 +327,60 @@ Return ONLY the JSON. No markdown, no code blocks."""
 
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _load)
+
+    def _parse_metadata_response(self, response: str) -> dict:
+        """Parse a flat {hook, hashtags} JSON object from the LLM response."""
+        candidates = []
+
+        try:
+            candidates.append(json.loads(response))
+        except json.JSONDecodeError:
+            pass
+
+        fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.DOTALL)
+        if fenced:
+            try:
+                candidates.append(json.loads(fenced.group(1)))
+            except json.JSONDecodeError:
+                pass
+
+        bare = re.search(r"\{[\s\S]*\}", response)
+        if bare:
+            try:
+                candidates.append(json.loads(bare.group(0)))
+            except json.JSONDecodeError:
+                pass
+
+        for data in candidates:
+            if isinstance(data, dict) and "hook" in data:
+                hashtags = data.get("hashtags") or []
+                if not isinstance(hashtags, list):
+                    hashtags = []
+                return {
+                    "hook": str(data["hook"]).strip(),
+                    "hashtags": [str(h).strip() for h in hashtags if str(h).strip()],
+                }
+
+        logger.warning("Could not parse clip metadata response as JSON")
+        return {"hook": "", "hashtags": []}
+
+    def _generate_clip_metadata_sync(self, clip_text: str) -> dict:
+        """Synchronous per-clip metadata generation."""
+        llm = self._get_llm()
+        if not llm.is_available():
+            raise RuntimeError(f"LLM provider '{llm.name}' is not available.")
+
+        prompt = self._load_prompt_template("clip_metadata_prompt.txt").format(
+            transcript=clip_text.strip()
+        )
+        response = llm.generate(prompt)
+        return self._parse_metadata_response(response)
+
+    async def generate_clip_metadata(self, clip_text: str) -> dict:
+        """
+        Generate {hook, hashtags} for a single clip from its transcript text.
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None, self._generate_clip_metadata_sync, clip_text
+        )

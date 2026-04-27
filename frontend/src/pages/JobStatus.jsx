@@ -59,6 +59,9 @@ function JobStatus() {
       })
         .then(() => {
           setIsUploading(false);
+          // Clear upload-specific message so it doesn't show on other steps
+          setStepMessage(null);
+          setStepProgress(0);
           // Clear the file from state to prevent re-upload on refresh
           window.history.replaceState({}, document.title);
         })

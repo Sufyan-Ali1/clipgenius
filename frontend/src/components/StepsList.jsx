@@ -8,6 +8,7 @@ const STEP_DESCRIPTIONS = {
   analyzing: 'Finding viral-worthy moments...',
   selecting: 'Choosing the best clips...',
   cutting: 'Extracting video segments...',
+  clip_metadata: 'Transcribing clips & generating titles...',
   subtitling: 'Burning captions into video...',
 };
 
@@ -52,10 +53,11 @@ function StepsList({
   const allSteps = [
     { key: 'uploading_video', label: 'Upload Video', showIf: isUploadJob },
     { key: 'downloading', label: 'Download Video', showIf: !isUploadJob },
-    { key: 'transcribing', label: 'Transcribe Audio' },
+    { key: 'transcribing', label: 'Transcribe Audio', showIf: !isManualMode },
     { key: 'analyzing', label: 'Analyze Content', showIf: !isManualMode },
     { key: 'selecting', label: 'Select Clips', showIf: !isManualMode },
     { key: 'cutting', label: 'Cut Clips' },
+    { key: 'clip_metadata', label: 'Title & Subtitles', showIf: isManualMode },
     { key: 'subtitling', label: 'Add Subtitles', showIf: addSubtitles === true },
   ];
 
@@ -140,7 +142,10 @@ function StepsList({
           const status = getStepStatus(step.key);
           const timeInfo = getStepTimeInfo(step.key, status);
           const isCurrent = status === 'current';
-          const description = isCurrent ? (stepMessage || STEP_DESCRIPTIONS[step.key]) : STEP_DESCRIPTIONS[step.key];
+          // Only use stepMessage for uploading/downloading steps, otherwise use default description
+          const useCustomMessage = isCurrent && stepMessage &&
+            (step.key === 'uploading_video' || step.key === 'downloading' || step.key === 'cutting' || step.key === 'subtitling');
+          const description = useCustomMessage ? stepMessage : STEP_DESCRIPTIONS[step.key];
 
           return (
             <div key={step.key} className={`step-row step-${status}`}>

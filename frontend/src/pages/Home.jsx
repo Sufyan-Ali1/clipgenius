@@ -33,6 +33,7 @@ function Home() {
       analyzing: '#f59e0b',
       selecting: '#10b981',
       cutting: '#ec4899',
+      clip_metadata: '#a855f7',
       subtitling: '#06b6d4',
       uploading: '#06b6d4',
       completed: '#22c55e',

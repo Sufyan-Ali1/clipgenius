@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     UPLOADS_DIR: Path = STORAGE_DIR / "uploads"
     OUTPUTS_DIR: Path = STORAGE_DIR / "outputs"
     TEMP_DIR: Path = STORAGE_DIR / "temp"
+    ASSETS_DIR: Path = BASE_DIR / "assets"
 
     # Whisper Settings (Groq API)
     WHISPER_MODEL: str = "whisper-large-v3"
@@ -68,6 +69,14 @@ class Settings(BaseSettings):
     SUBTITLE_OUTLINE_COLOR: str = "black"
     SUBTITLE_POSITION: str = "bottom"
 
+    # Watermark Settings
+    WATERMARK_ENABLED: bool = True
+    WATERMARK_PATH: Optional[Path] = None  # Will default to assets/watermark.png
+    WATERMARK_OPACITY: float = 0.3  # 30% opacity (0.0 = invisible, 1.0 = fully opaque)
+    WATERMARK_SCALE: float = 0.1  # 10% of video width
+    WATERMARK_POSITION: str = "bottom_right"  # bottom_right, bottom_left, top_right, top_left
+    WATERMARK_MARGIN: int = 20  # pixels from edge
+
     # Google Drive Settings
     GOOGLE_CREDENTIALS_PATH: Optional[str] = None
     GOOGLE_DRIVE_FOLDER_ID: Optional[str] = None
@@ -105,6 +114,14 @@ class Settings(BaseSettings):
         self.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
         self.OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
         self.TEMP_DIR.mkdir(parents=True, exist_ok=True)
+        self.ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+
+    def get_watermark_path(self) -> Optional[Path]:
+        """Get watermark path, defaulting to assets/watermark.png."""
+        if self.WATERMARK_PATH:
+            return self.WATERMARK_PATH
+        default_path = self.ASSETS_DIR / "watermark.png"
+        return default_path if default_path.exists() else None
 
 
 @lru_cache()

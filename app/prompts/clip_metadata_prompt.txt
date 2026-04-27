@@ -1,0 +1,28 @@
+You are an elite TikTok/YouTube Shorts content strategist. Generate a viral title and hashtags for the clip below.
+
+=== CLIP TRANSCRIPT ===
+{transcript}
+=== END TRANSCRIPT ===
+
+REQUIREMENTS:
+
+HOOK (title):
+- 5-10 words, attention-grabbing first impression
+- Use curiosity, controversy, FOMO, or a bold claim
+- No emojis, no hashtags
+- Must reflect the actual content of the clip
+
+HASHTAGS (6-8 total):
+- REACH: #fyp #foryou #viral
+- ENGAGEMENT: #relatable #facts #truth
+- EMOTION: #motivated #mindblown #gamechanger
+- NICHE: 2-3 topic-specific tags relevant to this clip
+- All lowercase, each starting with #
+
+OUTPUT FORMAT (JSON only):
+{{
+  "hook": "First 5-10 attention-grabbing words",
+  "hashtags": ["#fyp", "#viral", "#niche1", "#niche2", "#emotion", "#engagement"]
+}}
+
+Return ONLY the JSON. No markdown, no code blocks, no explanation.
